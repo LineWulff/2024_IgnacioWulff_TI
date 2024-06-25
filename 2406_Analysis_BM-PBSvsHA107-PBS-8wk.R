@@ -177,22 +177,38 @@ write.csv(DA_peaks_res.0.4_FC1, file = paste("/Users/linewulff/Documents/work/pr
 
 
 #### Cluster IDs #### 
-rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"Cd34")]
+rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"H2")]
 
 # HSPC markers - see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5969381/
 FeaturePlot(combined, features = "rna_Cd34")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cd48")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Gata2")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Procr")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Kit")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Fgd5")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Hoxb5")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Epc1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ly6a")+scale_colour_gradientn(colors = mycols) #Sca-1
 
-
-# monocyte markers
+# monocyte markers - see see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5969381/
 FeaturePlot(combined, features = "rna_Ly6c2")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Ly6c1")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Lyz2")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Ccr2")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Csf2ra")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Elane")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cebpe")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Csf1r")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ly86")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cx3cr1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Fcer1g")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Itgam")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_H2-Ab1")+scale_colour_gradientn(colors = mycols)
 
 # DC progenitor markers
 FeaturePlot(combined, features = "rna_Flt3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Irf8")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Batf3")+scale_colour_gradientn(colors = mycols)
+
+#### save object version ####
+saveRDS(combined, paste(dato,"_SeuObj_",project,".rds",sep = ""))
