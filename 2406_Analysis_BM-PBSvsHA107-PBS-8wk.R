@@ -177,7 +177,7 @@ write.csv(DA_peaks_res.0.4_FC1, file = paste("/Users/linewulff/Documents/work/pr
 
 
 #### Cluster IDs #### 
-rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"H2")]
+rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"Csfr")]
 
 # HSPC markers - see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5969381/
 FeaturePlot(combined, features = "rna_Cd34")+scale_colour_gradientn(colors = mycols)
@@ -189,6 +189,19 @@ FeaturePlot(combined, features = "rna_Fgd5")+scale_colour_gradientn(colors = myc
 FeaturePlot(combined, features = "rna_Hoxb5")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Epc1")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Ly6a")+scale_colour_gradientn(colors = mycols) #Sca-1
+# more - Tgfbr3, Slc22a3, Gata2, and Kit - from https://www.cell.com/immunity/fulltext/S1074-7613(24)00260-7
+FeaturePlot(combined, features = "rna_Slc22a3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Tgfbr3")+scale_colour_gradientn(colors = mycols)
+
+# lymphoid myeloid primed - Cd34, Kit, Flt3, Meis1, Dach1, Ikzf2, Mecom, and Hlf - from https://www.cell.com/immunity/fulltext/S1074-7613(24)00260-7
+FeaturePlot(combined, features = "rna_Cd34")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Kit")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Flt3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Meis1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Dach1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ikzf2")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Hlf")+scale_colour_gradientn(colors = mycols)
+
 
 # monocyte markers - see see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5969381/
 FeaturePlot(combined, features = "rna_Ly6c2")+scale_colour_gradientn(colors = mycols)
@@ -205,10 +218,64 @@ FeaturePlot(combined, features = "rna_Fcer1g")+scale_colour_gradientn(colors = m
 FeaturePlot(combined, features = "rna_Itgam")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_H2-Ab1")+scale_colour_gradientn(colors = mycols)
 
-# DC progenitor markers
+# DC progenitor markers - MDP/CDP (Calr, Mpo, and Ctsg) - from https://www.cell.com/immunity/fulltext/S1074-7613(24)00260-7
 FeaturePlot(combined, features = "rna_Flt3")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Irf8")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Batf3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Irf4")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Calr")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Mpo")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ctsg")+scale_colour_gradientn(colors = mycols)
+# cDC1 (same paper) - (Bcl2, Tcf3, and Nfil3, Id2, Batf3, Zbtb46, and Cd226)
+FeaturePlot(combined, features = "rna_Zbtb46")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cd226")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Batf3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Id2")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Nfil3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Tcf3")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Bcl2")+scale_colour_gradientn(colors = mycols)
+#cDC2 (same paper) - Itgam, Cx3cr1, Sirpa, Csf1r, Ciita, and H2-Ab1 
+FeaturePlot(combined, features = "rna_Itgam")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cx3cr1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Sirpa")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Csf1r")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ciita")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_H2-Ab1")+scale_colour_gradientn(colors = mycols)
+
+
+## Contaminants?
+# Granulocytes: Anxa1, Zmpste24, Ly75, Ncam1, and Syne1
+FeaturePlot(combined, features = "rna_Anxa1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Zmpste24")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ly75")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ncam1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Syne1")+scale_colour_gradientn(colors = mycols)
+
+# 
+
+#### --- Distribution plots ---- ####
+## Run function script first
+res0.4_dist <- perc_function_samp("ATAC_snn_res.0.4", colnames(combined), combined,"colonization")
+head(res0.4_dist)
+tapply(combined@meta.data$ATAC_snn_res.0.4, combined@meta.data$orig.ident, summary)
+
+res0.4_dist$samp <- factor(res0.4_dist$samp, levels = c("PBS","HA107"))
+
+ggplot(res0.4_dist, aes(x=samp, y=percent, fill=cluster))+geom_bar(position = "stack", stat = "identity", colour = "black")
+ggplot(res0.4_dist, aes(x=samp, y=percent, fill=cluster))+
+  geom_bar(position = "dodge", stat = "identity", colour = "black")+
+  facet_grid(.~cluster)+
+  theme_classic()+
+  xlab("colonization")+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+
+
+
+print(hej)
+  
+
 
 #### save object version ####
 saveRDS(combined, paste(dato,"_SeuObj_",project,".rds",sep = ""))
