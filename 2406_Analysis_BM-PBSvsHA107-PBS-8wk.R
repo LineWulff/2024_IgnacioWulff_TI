@@ -217,6 +217,11 @@ FeaturePlot(combined, features = "rna_Cx3cr1")+scale_colour_gradientn(colors = m
 FeaturePlot(combined, features = "rna_Fcer1g")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Itgam")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_H2-Ab1")+scale_colour_gradientn(colors = mycols)
+# non-classical monocytes - Sirpa, Csf1r, Adgre1, Tnfrsf1b, from https://www.cell.com/immunity/fulltext/S1074-7613(24)00260-7
+FeaturePlot(combined, features = "rna_Sirpa")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Csf1r")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Adgre1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Tnfrsf1b")+scale_colour_gradientn(colors = mycols)
 
 # DC progenitor markers - MDP/CDP (Calr, Mpo, and Ctsg) - from https://www.cell.com/immunity/fulltext/S1074-7613(24)00260-7
 FeaturePlot(combined, features = "rna_Flt3")+scale_colour_gradientn(colors = mycols)
@@ -251,7 +256,13 @@ FeaturePlot(combined, features = "rna_Ly75")+scale_colour_gradientn(colors = myc
 FeaturePlot(combined, features = "rna_Ncam1")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Syne1")+scale_colour_gradientn(colors = mycols)
 
-# 
+VlnPlot(combined,
+  features = c('nCount_peaks', 'TSS.enrichment', 'blacklist_fraction', 'nucleosome_signal', 'pct_reads_in_peaks'),
+  pt.size = 0,
+  ncol = 3
+)
+FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors = mycols)
+# is cl 5 just debris???
 
 #### --- Distribution plots ---- ####
 ## Run function script first
