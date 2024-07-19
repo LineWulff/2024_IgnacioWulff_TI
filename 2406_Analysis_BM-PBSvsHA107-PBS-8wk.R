@@ -19,6 +19,7 @@ library(colorRamp2)
 #### ---- variables used throughout script ---- ####
 rm(list = ls())
 projdir <- getwd()
+RAID_dir <- "/Volumes/Promise RAID/Line/projects/24_TI_IgnacioWulff"
 dato <- str_sub(str_replace_all(Sys.Date(),"-","_"), 3, -1)
 ## colouring
 myColorRamp <- function(colors, values) {
@@ -256,13 +257,63 @@ FeaturePlot(combined, features = "rna_Ly75")+scale_colour_gradientn(colors = myc
 FeaturePlot(combined, features = "rna_Ncam1")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Syne1")+scale_colour_gradientn(colors = mycols)
 
+# NK cells - https://www.nature.com/articles/s41467-019-11947-7 markers
+FeaturePlot(combined, features = "rna_Klrd1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Nkg7")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Gnly")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ncam1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Cd7")+scale_colour_gradientn(colors = mycols)
+
+
+
 VlnPlot(combined,
   features = c('nCount_peaks', 'TSS.enrichment', 'blacklist_fraction', 'nucleosome_signal', 'pct_reads_in_peaks'),
   pt.size = 0,
   ncol = 3
 )
 FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors = mycols)
-# is cl 5 just debris???
+# is cl 5 just debris??? - Yes
+
+#### ---- Use external data set to identify cells instead ---- ####
+# data set from https://www.nature.com/articles/s41556-019-0439-6 (preprocessed Seurat object)
+load(paste(RAID_dir,"10x_ext_datasets/RNAMagnetDataBundle/NicheData10x.rda",sep = "/"))
+NicheData10x <- UpdateSeuratObject(NicheData10x)
+# inspect
+NicheData10x
+DimPlot(NicheData10x, label = T)#+NoLegend()
+head(NicheData10x@meta.data)
+NicheData10x@meta.data$ID <- Idents(NicheData10x)
+# Add also upper level IDs as in Fig 1
+mesenchymal <- c("Myofibroblasts","Smooth muscle","Fibro/Chondro p.","Stromal fibro.","Arteriolar fibro.",
+                 "Osteo-CAR","Chondrocytes","Endosteal fibro.","Osteoblasts","Ng2+ MSCs","Adipo-CAR")
+immune <- c("NK cells","B cell","Dendritic cells","small pre-B.","Neutrophils","T cells","Monocytes","pro-B",
+            "large pre-B.")
+HSPC <- c("Mk prog.","Erythroblasts","Eo/Baso prog.","Ery prog.","LMPPs","Gran/Mono prog.","Mono prog.",
+          "Neutro prog.","Ery/Mk prog.")
+Neuronal <- c("Arteriolar ECs","Sinusoidal ECs")
+EC <- c("Schwann cells")
+
+unique(NicheData10x@meta.data$ID)[!unique(NicheData10x@meta.data$ID) %in% c(mesenchymal,immune,HSPC,Neuronal,EC)]
+# all covered, now add the upper level ID
+upIDs <- c(rep("mesenchymal",length(mesenchymal)),
+           rep("immune",length(immune)),
+           rep("HSPC",length(HSPC)),
+           rep("neuronal",length(Neuronal)),
+           rep("EC",length(EC)))
+names(upIDs) <- c(mesenchymal,immune,HSPC,Neuronal,EC)
+
+
+NicheData10x@meta.data$uplev_ID <- NA
+for (clus in unique(NicheData10x@meta.data$ID)){
+  NicheData10x@meta.data[NicheData10x@meta.data$ID==clus,]$uplev_ID <- upIDs[clus]
+}
+# check worked
+DimPlot(NicheData10x, group.by = "uplev_ID", label = T)+NoLegend()
+
+#
+
+
+
 
 #### --- Distribution plots ---- ####
 ## Run function script first
