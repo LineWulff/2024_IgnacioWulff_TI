@@ -15,6 +15,9 @@ library(biovizBase)
 library(EnsDb.Mmusculus.v79)
 library(GenomicRanges) 
 library(colorRamp2)
+library(scales)
+library(matrixStats)
+
 
 #### ---- variables used throughout script ---- ####
 rm(list = ls())
@@ -276,8 +279,13 @@ FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors =
 
 #### ---- Use external data set to identify cells instead ---- ####
 # data set from https://www.nature.com/articles/s41556-019-0439-6 (preprocessed Seurat object)
+# droplet-based scRNAseq12 of cells from total mouse BM
 load(paste(RAID_dir,"10x_ext_datasets/RNAMagnetDataBundle/NicheData10x.rda",sep = "/"))
 NicheData10x <- UpdateSeuratObject(NicheData10x)
+# top DEGs of idnets from same data set
+ND_DEGs <- read.csv(paste(RAID_dir,"10x_ext_datasets/RNAMagnetDataBundle/NicheData10x_topDEGs.csv", sep="/"))
+head(ND_DEGs)
+
 # inspect
 NicheData10x
 DimPlot(NicheData10x, label = T)#+NoLegend()
@@ -290,8 +298,8 @@ immune <- c("NK cells","B cell","Dendritic cells","small pre-B.","Neutrophils","
             "large pre-B.")
 HSPC <- c("Mk prog.","Erythroblasts","Eo/Baso prog.","Ery prog.","LMPPs","Gran/Mono prog.","Mono prog.",
           "Neutro prog.","Ery/Mk prog.")
-Neuronal <- c("Arteriolar ECs","Sinusoidal ECs")
-EC <- c("Schwann cells")
+EC <- c("Arteriolar ECs","Sinusoidal ECs")
+Neuronal <- c("Schwann cells")
 
 unique(NicheData10x@meta.data$ID)[!unique(NicheData10x@meta.data$ID) %in% c(mesenchymal,immune,HSPC,Neuronal,EC)]
 # all covered, now add the upper level ID
@@ -310,11 +318,80 @@ for (clus in unique(NicheData10x@meta.data$ID)){
 # check worked
 DimPlot(NicheData10x, group.by = "uplev_ID", label = T)+NoLegend()
 
-#
+# Run function from clustercorrelation script
+# first get variable feature gene_names from combined object
+var_gens <- ClosestFeature(combined, VariableFeatures(combined))
+var_gens <- unique(var_gens$gene_name)
+
+uplev_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,NicheData10x,"uplev_ID","RNA")
+heatmap(as.matrix(uplev_corr), scale = "none", trace="none", density ="none",
+          dendrogram = "column",
+          col = c(rep("#313695",15),mycols),
+          RowSideColors = unlist(as.list(hue_pal()(nrow(uplev_corr)))), ylab = deparse(substitute(combined)),# labRow = "",
+          ColSideColors = unlist(as.list(hue_pal()(ncol(uplev_corr)))), xlab = deparse(substitute(NicheData10x)),# labCol = "",
+          margins = c(11,5))
+
+ID_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,NicheData10x,"ID","RNA")
+heatmap(as.matrix(ID_corr), scale = "none", trace="none", density ="none",
+        dendrogram = "column",
+        col = c(rep("#313695",15),mycols),
+        RowSideColors = unlist(as.list(hue_pal()(nrow(ID_corr)))), ylab = deparse(substitute(combined)),# labRow = "",
+        ColSideColors = unlist(as.list(hue_pal()(ncol(ID_corr)))), xlab = deparse(substitute(NicheData10x)),# labCol = "",
+        margins = c(8,5))
+
+ID_sub_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,
+                            subset(NicheData10x, cells = rownames(NicheData10x@meta.data[NicheData10x@meta.data$uplev_ID %in% c("immune","HSPC","EC"),])),
+                            "ID","RNA")
+heatmap(as.matrix(ID_sub_corr), scale = "none", trace="none", density ="none",
+        dendrogram = "column",
+        col = c(rep("#313695",15),mycols),
+        RowSideColors = unlist(as.list(hue_pal()(nrow(ID_sub_corr)))), ylab = deparse(substitute(combined)),# labRow = "",
+        ColSideColors = unlist(as.list(hue_pal()(ncol(ID_sub_corr)))), xlab = deparse(substitute(NicheData10x)),# labCol = "",
+        margins = c(8,5))
+
+# max values from above
+ID_max <- apply(ID_sub_corr, 1, max)
+ID_max_match <- c()
+for (i in seq(1,length(ID_max))){
+  if (ID_max[i] %in% ID_sub_corr[names(ID_max[i]),]){
+    print(names(ID_max[i]))
+    print(colnames(ID_sub_corr)[ID_sub_corr[names(ID_max[i]),] %in% ID_max[i]])
+    ID_max_match <- c(ID_max_match, colnames(ID_sub_corr)[ID_sub_corr[names(ID_max[i]),] %in% ID_max[i]])}
+  
+}
+
+## Do top DEGs as module scores
+head(ND_DEGs)
+DefaultAssay(combined) <- 'RNA'
+
+# Add modulescores for each DEG set 
+for (col in colnames(ND_DEGs)){
+  col_genes <- ND_DEGs[,col]
+  col_genes <- col_genes[col_genes != ""]
+  if (length(col_genes)>100) {len_col_genes = 100} else{len_col_genes = length(col_genes)}
+  print(col)
+  print(paste("existing genes: ", length(col_genes[col_genes %in% rownames(combined@assays$RNA@data)]), " of ",length(col_genes), sep = ""))
+  combined <- AddModuleScore(combined, features = list(col_genes),
+                             assay = "RNA", ctrl = len_col_genes,
+                             name = col)
+  
+}
+# print and save the featureplots and vlnplots
+for (col in colnames(ND_DEGs)){
+  feat_plot <- FeaturePlot(combined, features = paste(col,1, sep = ""))+
+    scale_colour_gradientn(colors = mycols)
+  vln_plot <- VlnPlot(combined, features = paste(col,1, sep = ""), pt.size = 0)
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.4_UMAPfeatPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  print(feat_plot)
+  dev.off()
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.4_VlnPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  print(vln_plot)
+  dev.off()
+}
 
 
 
-
+print("hej")
 #### --- Distribution plots ---- ####
 ## Run function script first
 res0.4_dist <- perc_function_samp("ATAC_snn_res.0.4", colnames(combined), combined,"colonization")
