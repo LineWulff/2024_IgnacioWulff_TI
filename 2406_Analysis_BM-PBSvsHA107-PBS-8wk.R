@@ -267,6 +267,12 @@ FeaturePlot(combined, features = "rna_Gnly")+scale_colour_gradientn(colors = myc
 FeaturePlot(combined, features = "rna_Ncam1")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Cd7")+scale_colour_gradientn(colors = mycols)
 
+# Neutrophils
+FeaturePlot(combined, features = "rna_S100a8")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ly6g")+scale_colour_gradientn(colors = mycols)
+
+#
+FeaturePlot(combined, features = "rna_Siglecf")+scale_colour_gradientn(colors = mycols)
 
 
 VlnPlot(combined,
@@ -389,9 +395,6 @@ for (col in colnames(ND_DEGs)){
   dev.off()
 }
 
-
-
-print("hej")
 #### --- Distribution plots ---- ####
 ## Run function script first
 res0.4_dist <- perc_function_samp("ATAC_snn_res.0.4", colnames(combined), combined,"colonization")
@@ -416,5 +419,150 @@ print(hej)
   
 
 
-#### save object version ####
+#### ---- save object version and metadata---- ####
+# Clustering res.0.4
+# 0 - monocytes
+# 1 - monocytes
+# 2 - monocytes
+# 3 – neutrophil (progenitors?) **
+# 4 - monocytes
+# 5 - Debris *
+# 6 – LSK sorted cells
+# 7 - Dendritic cell / progenitors
+# 8 - NK cells *
+# 9 - Eosinophils *
+
+## Add IDs and save metadata
+res0.4_IDs <- c("0"="0_monocytes", "1"="1_monocytes", "2"="2_monocytes", "3"="neutrophils", "4"="4_monocytes",
+                "5"="debris", "6"="LSK", "7"="DC prog.", "8"="NK cells", "9"="eosinophils")
+combined@meta.data$res0.4_IDs <- NA
+for (clus in as.character(unique(combined@meta.data$ATAC_snn_res.0.4))){
+  combined@meta.data[as.character(combined@meta.data$ATAC_snn_res.0.4) == clus,]$res0.4_IDs <- res0.4_IDs[[clus]]
+}
+DimPlot(combined, group.by = "res0.4_IDs", label = T)
+
+# save metadata
+saveRDS(combined@meta.data, paste(dato,"_SeuObj_",project,"_MetaDataOnly.rds",sep = ""))
 saveRDS(combined, paste(dato,"_SeuObj_",project,".rds",sep = ""))
+
+#### ---- Reclusetring based on res.0.4 ---- ####
+## clusterID
+# Clustering res.0.4
+# 0 - monocytes
+# 1 - monocytes
+# 2 - monocytes
+# 3 – neutrophil (progenitors?) **
+# 4 - monocytes
+# 5 - Debris *
+# 6 – LSK sorted cells
+# 7 - Dendritic cell / progenitors
+# 8 - NK cells *
+# 9 - Eosinophils *
+
+# save metadata
+
+save_cells <- rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.4 %in% c(0,1,2,3,4,6,7),])
+length(save_cells) #10325 cells in object after removing contaminants
+table(combined@meta.data[save_cells,]$orig.ident)
+length(Cells(combined)) - length(save_cells) # removing 915 cells/debris
+table(combined@meta.data$orig.ident)-table(combined@meta.data[save_cells,]$orig.ident) # 491 from HA107, 424 from PBS
+
+### Run merge from line 96 again 
+combined <- merge(
+  x = BMPBSPBS8wk,
+  y = BMHAPBS8wk,
+  add.cell.ids = c("BM-PBS-PBS-8wk", "BM-HA107-PBS-8wk")
+)
+
+combined <- subset(combined, cells = save_cells)
+length(Cells(combined)) # check fots with line 465
+
+length(rownames(combined@assays$ATAC)) # 144016
+
+# extract gene annotations from EnsDb
+annotations <- GetGRangesFromEnsDb(ensdb = EnsDb.Mmusculus.v79)
+
+# change to UCSC style since the data was mapped to hg19
+seqlevels(annotations) <- paste0('chr', seqlevels(annotations))
+genome(annotations) <- "mm10"
+# add the gene information to the object
+Annotation(combined) <- annotations
+
+## Variable features, Dim reduction
+combined <- RunTFIDF(combined)
+combined <- FindTopFeatures(combined, min.cutoff = 20)
+combined <- RunSVD(combined)
+combined <- RunUMAP(combined, dims = 2:50, reduction = 'lsi')
+
+DimPlot(combined, group.by = 'orig.ident', pt.size = 0.1)
+
+## Add IDs from metadata of former round
+r1_meta <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/24_07_22_SeuObj_BM-PBSvsHA107-PBS-8wk_MetaDataOnly.rds")
+combined@meta.data$res0.4_IDs <- r1_meta[save_cells,]$res0.4_IDs
+
+DimPlot(combined, group.by = 'res0.4_IDs', pt.size = 0.1)
+
+CoveragePlot(
+  object = combined,
+  group.by = 'orig.ident',
+  region = "chr14-99700000-99760000"
+)
+
+VlnPlot(object = combined, group.by = 'orig.ident', features = c("blacklist_fraction","nucleosome_signal"))
+
+
+combined <- FindNeighbors(object = combined, reduction = 'lsi', dims = 2:30)
+res <- seq(0,1,0.1)
+combined <- FindClusters(object = combined, verbose = FALSE, algorithm = 3, resolution = res)
+DimPlot(object = combined, label = TRUE,
+        group.by = "ATAC_snn_res.0.1",
+        split.by = "orig.ident")
+Idents(combined) <- 'ATAC_snn_res.0.1'
+
+gene.activities <- GeneActivity(combined)
+# add the gene activity matrix to the Seurat object as a new assay and normalize it
+combined[['RNA']] <- CreateAssayObject(counts = gene.activities)
+combined <- NormalizeData(
+  object = combined,
+  assay = 'RNA',
+  normalization.method = 'LogNormalize',
+  scale.factor = median(combined$nCount_RNA)
+)
+
+
+rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data), "Ly6")]
+#test
+VlnPlot(combined, features = "Ccr2", assay = "RNA", split.by = "orig.ident")
+
+
+# change back to working with peaks instead of gene activities
+DefaultAssay(combined) <- 'ATAC'
+
+
+## If running FindConservedMarkers specify assay, as will otherwise assume RNA assay
+## nCount_peaks vs peak_region_fragments + essentially the same, nCount calc. by Seurat, 
+## highly correlated though
+## cor(combined$peak_region_fragments, combined$nCount_peaks) = 0.999848
+DA_peaks_res.0.4_FC1 <- FindAllMarkers(
+  object = combined,
+  only.pos = TRUE,
+  test.use = 'LR',
+  latent.vars = 'nCount_peaks',
+  logfc.threshold = 1
+)
+
+head(DA_peaks_res.0.4_FC1)
+
+## add gene name to the regions to infer activity
+open_regs <- rownames(DA_peaks_res.0.4_FC1)
+closest_genes_FC1 <- ClosestFeature(combined, regions = open_regs)
+head(closest_genes_FC1[,c("gene_name","query_region")])
+DA_peaks_res.0.4_FC1$gene_name <- NA
+DA_peaks_res.0.4_FC1[rownames(DA_peaks_res.0.4_FC1) %in% closest_genes_FC1$query_region,]$gene_name <- closest_genes_FC1$gene_name
+
+head(DA_peaks_res.0.4_FC1)
+write.csv(DA_peaks_res.0.4_FC1, file = paste("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/Clustering/",dato, project,"_res.0.4_PeaksPrClus_FC1.csv",sep = ""))
+
+## monocyte markers
+FeaturePlot(combined, features = "rna_Fcgr3")+scale_colour_gradientn(colors = mycols) # CD16
+
