@@ -17,6 +17,7 @@ library(GenomicRanges)
 library(colorRamp2)
 library(scales)
 library(matrixStats)
+library(openxlsx)
 
 
 #### ---- variables used throughout script ---- ####
@@ -445,7 +446,7 @@ DimPlot(combined, group.by = "res0.4_IDs", label = T)
 saveRDS(combined@meta.data, paste(dato,"_SeuObj_",project,"_MetaDataOnly.rds",sep = ""))
 saveRDS(combined, paste(dato,"_SeuObj_",project,".rds",sep = ""))
 
-#### ---- Reclusetring based on res.0.4 ---- ####
+#### ---- Reclustering based on res.0.4 ---- ####
 ## clusterID
 # Clustering res.0.4
 # 0 - monocytes
@@ -565,4 +566,126 @@ write.csv(DA_peaks_res.0.4_FC1, file = paste("/Users/linewulff/Documents/work/pr
 
 ## monocyte markers
 FeaturePlot(combined, features = "rna_Fcgr3")+scale_colour_gradientn(colors = mycols) # CD16
+
+
+#### ---- Distribution plot ----- ####
+## Run function script first
+res0.1_dist <- perc_function_samp("ATAC_snn_res.0.1", colnames(combined), combined,"colonization")
+head(res0.1_dist)
+tapply(combined@meta.data$ATAC_snn_res.0.1, combined@meta.data$orig.ident, summary)
+
+res0.1_dist$samp <- factor(res0.1_dist$samp, levels = c("PBS","HA107"))
+
+ggplot(res0.1_dist, aes(x=samp, y=percent, fill=cluster))+geom_bar(position = "stack", stat = "identity", colour = "black")
+ggplot(res0.1_dist, aes(x=samp, y=percent, fill=cluster))+
+  geom_bar(position = "dodge", stat = "identity", colour = "black")+
+  facet_grid(.~cluster)+
+  theme_classic()+
+  xlab("colonization")+
+  theme(axis.text.x = element_text(angle = 90))
+
+#### ---- compare to literature ---- ####
+# Add modulescores for each DEG set 
+for (col in colnames(ND_DEGs)){
+  col_genes <- ND_DEGs[,col]
+  col_genes <- col_genes[col_genes != ""]
+  if (length(col_genes)>100) {len_col_genes = 100} else{len_col_genes = length(col_genes)}
+  print(col)
+  print(paste("existing genes: ", length(col_genes[col_genes %in% rownames(combined@assays$RNA@data)]), " of ",length(col_genes), sep = ""))
+  combined <- AddModuleScore(combined, features = list(col_genes),
+                             assay = "RNA", ctrl = len_col_genes,
+                             name = col)
+  
+}
+# print and save the featureplots and vlnplots
+for (col in colnames(ND_DEGs)){
+  feat_plot <- FeaturePlot(combined, features = paste(col,1, sep = ""))+
+    scale_colour_gradientn(colors = mycols)
+  vln_plot <- VlnPlot(combined, features = paste(col,1, sep = ""), pt.size = 0)
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.4_UMAPfeatPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  print(feat_plot)
+  dev.off()
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "LSKMonoNeu_res0.1_VlnPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  print(vln_plot)
+  dev.off()
+}
+
+#### ---- DE between clusters and conditions ---- ####
+# change back to working with peaks instead of gene activities
+DefaultAssay(combined) <- 'ATAC'
+
+
+## If running FindConservedMarkers specify assay, as will otherwise assume RNA assay
+## nCount_peaks vs peak_region_fragments + essentially the same, nCount calc. by Seurat, 
+## highly correlated though
+## cor(combined$peak_region_fragments, combined$nCount_peaks) = 0.999848
+DA_peaks_res.0.1_FC1 <- FindAllMarkers(
+  object = combined,
+  only.pos = TRUE,
+  test.use = 'LR',
+  latent.vars = 'nCount_peaks',
+  logfc.threshold = 1
+)
+
+head(DA_peaks_res.0.1_FC1)
+
+## add gene name to the regions to infer activity
+open_regs <- rownames(DA_peaks_res.0.1_FC1)
+closest_genes_FC1 <- ClosestFeature(combined, regions = open_regs)
+head(closest_genes_FC1[,c("gene_name","query_region")])
+DA_peaks_res.0.1_FC1$gene_name <- NA
+DA_peaks_res.0.1_FC1[rownames(DA_peaks_res.0.1_FC1) %in% closest_genes_FC1$query_region,]$gene_name <- closest_genes_FC1$gene_name
+
+head(DA_peaks_res.0.1_FC1)
+write.csv(DA_peaks_res.0.1_FC1, file = paste("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/Clustering/",dato, project,"LSKMonoNeu_res.0.1_PeaksPrClus_FC1.csv",sep = ""))
+
+## Comparison between conditions per cluster
+DA_peaks_conditions <- list()
+Idents(combined) <- "orig.ident"
+  
+for (clus in unique(combined@meta.data$ATAC_snn_res.0.1)){
+  DA_peaks_res.0.1 <- FindMarkers(
+    object = subset(combined, cells = rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.1==clus,])),
+    only.pos = FALSE,
+    ident.1 = 'BM-PBS-PBS-8wk', 
+    ident.2 = 'BM-HA107-PBS-8wk',
+    test.use = 'LR',
+    latent.vars = 'nCount_peaks',
+    logfc.threshold = 0)
+  # add ass. genename
+  open_regs <- rownames(DA_peaks_res.0.1)
+  closest_genes <- ClosestFeature(subset(combined, cells = rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.1==clus,])),
+                                  regions = open_regs)
+  DA_peaks_res.0.1$gene_name <-NA
+  DA_peaks_res.0.1[rownames(DA_peaks_res.0.1) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  # Add sign. groups (mainly for plotting), all non sign. will be removed before saving
+  DA_peaks_res.0.1$sign <- "not sign."
+  DA_peaks_res.0.1[,]$sign <- "BM-PBS-PBS-8wk"
+  DA_peaks_res.0.1[,]$sign <- "BM-HA107-PBS-8wk"
+  
+  # plot as volcano
+  volc_plot <- ggplot(DA_peaks_res.0.1, aes(x = , y =, colour = ))+
+    geom_point_rast()+
+    geom_vline(xintercept = c(-0.5,0.5), linetype = "dashed")+ # sign. threshold
+    geom_hline(yintercept = c(-log10(0.05)), linetype = "dashed")+ # sign. threshold
+    geom_vline(xintercept = c(0))+ #0
+    scale_color_manual(values = c('BM-PBS-PBS-8wk'="#F8766D",'BM-HA107-PBS-8wk'="#00BFC4", 'not sign.'='lightgrey'))+
+    theme_classic()+
+    ylab("-log10(adj. p-value)")+xlab("avg. log2FC")+
+    theme()
+  pdf(paste0(RAID_dir,dato,"cluster",clus,".pdf"),height = 4, width = 5.5)
+  print(volc_plot)
+  dev.off()
+  
+  # subset to only include significant values, logFC 0.5 and p.adj 0.05
+  
+  DA_peaks_conditions[[clus]] <- DA_peaks_res.0.1 
+}
+names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep = "_")
+
+## save in csv format
+write.xlsx(DA_peaks_conditions, file = paste(projdir,"/Outputs/Clustering/", dato, "_LSKMonoNeu_res.0.1_PerClusCompvsCond.xlsx", sep = ""),
+           rowNames = T)
+
 
