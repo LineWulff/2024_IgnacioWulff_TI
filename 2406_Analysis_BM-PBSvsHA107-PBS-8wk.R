@@ -661,11 +661,11 @@ for (clus in unique(combined@meta.data$ATAC_snn_res.0.1)){
   
   # Add sign. groups (mainly for plotting), all non sign. will be removed before saving
   DA_peaks_res.0.1$sign <- "not sign."
-  DA_peaks_res.0.1[,]$sign <- "BM-PBS-PBS-8wk"
-  DA_peaks_res.0.1[,]$sign <- "BM-HA107-PBS-8wk"
+  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC>0.25 & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-PBS-PBS-8wk"
+  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC<(-0.25) & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-HA107-PBS-8wk"
   
   # plot as volcano
-  volc_plot <- ggplot(DA_peaks_res.0.1, aes(x = , y =, colour = ))+
+  volc_plot <- ggplot(DA_peaks_res.0.1, aes(x = , y =, colour = sign ))+
     geom_point_rast()+
     geom_vline(xintercept = c(-0.5,0.5), linetype = "dashed")+ # sign. threshold
     geom_hline(yintercept = c(-log10(0.05)), linetype = "dashed")+ # sign. threshold
