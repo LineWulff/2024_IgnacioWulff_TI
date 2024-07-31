@@ -18,6 +18,7 @@ library(colorRamp2)
 library(scales)
 library(matrixStats)
 library(openxlsx)
+library(ggrastr)
 
 
 #### ---- variables used throughout script ---- ####
@@ -660,31 +661,35 @@ for (clus in unique(combined@meta.data$ATAC_snn_res.0.1)){
   DA_peaks_res.0.1[rownames(DA_peaks_res.0.1) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
   
   # Add sign. groups (mainly for plotting), all non sign. will be removed before saving
+  # beacuse not all have significant values, should include option of none
   DA_peaks_res.0.1$sign <- "not sign."
-  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC>0.25 & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-PBS-PBS-8wk"
-  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC<(-0.25) & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-HA107-PBS-8wk"
+  if (any(DA_peaks_res.0.1$avg_log2FC>0.25 & DA_peaks_res.0.1$p_val_adj<0.05)){
+  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC>0.25 & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-PBS-PBS-8wk"}
+  if (any(DA_peaks_res.0.1$avg_log2FC<(-0.25) & DA_peaks_res.0.1$p_val_adj<0.05)){
+  DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC<(-0.25) & DA_peaks_res.0.1$p_val_adj<0.05,]$sign <- "BM-HA107-PBS-8wk"}
   
   # plot as volcano
-  volc_plot <- ggplot(DA_peaks_res.0.1, aes(x = , y =, colour = sign ))+
+  volc_plot <- ggplot(DA_peaks_res.0.1, aes(x = avg_log2FC, y = -log10(p_val_adj), colour = sign ))+
     geom_point_rast()+
-    geom_vline(xintercept = c(-0.5,0.5), linetype = "dashed")+ # sign. threshold
+    geom_vline(xintercept = c(-0.25,0.25), linetype = "dashed")+ # sign. threshold
     geom_hline(yintercept = c(-log10(0.05)), linetype = "dashed")+ # sign. threshold
     geom_vline(xintercept = c(0))+ #0
     scale_color_manual(values = c('BM-PBS-PBS-8wk'="#F8766D",'BM-HA107-PBS-8wk'="#00BFC4", 'not sign.'='lightgrey'))+
     theme_classic()+
     ylab("-log10(adj. p-value)")+xlab("avg. log2FC")+
-    theme()
-  pdf(paste0(RAID_dir,dato,"cluster",clus,".pdf"),height = 4, width = 5.5)
+    guides(colour=guide_legend(title="Significance"))
+  pdf(paste0(RAID_dir,dato,project,"VolcanoPlotDAR_cluster",clus,"PBSvsHA107.pdf"),height = 4, width = 5.5)
   print(volc_plot)
   dev.off()
-  
   # subset to only include significant values, logFC 0.5 and p.adj 0.05
-  
+  DA_peaks_res.0.1 <- DA_peaks_res.0.1[DA_peaks_res.0.1$avg_log2FC>0.25 & DA_peaks_res.0.1$p_val_adj<0.05 |
+                                      DA_peaks_res.0.1$avg_log2FC<(-0.25) & DA_peaks_res.0.1$p_val_adj<0.05,]
   DA_peaks_conditions[[clus]] <- DA_peaks_res.0.1 
 }
+
 names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep = "_")
 
-## save in csv format
+## save in excel format
 write.xlsx(DA_peaks_conditions, file = paste(projdir,"/Outputs/Clustering/", dato, "_LSKMonoNeu_res.0.1_PerClusCompvsCond.xlsx", sep = ""),
            rowNames = T)
 
