@@ -39,9 +39,12 @@ proj_data_dir <- "/Volumes/Promise RAID/Line/projects/24_TI_IgnacioWulff/samples
 ## sample combination
 project <- "BM-PBSvsHA107-PBSvsLPS-21dvs8wk"
 
+#### --- Read in data ---- ####
+combined <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/25_07_14 PBSHA107PBALPS_8wk21d.rds")
+Idents(combined) <- 'ATAC_snn_res.0.2'
 
 #### ---- Cluster IDs using singular genes ---- #### 
-rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"Csfr")]
+rownames(combined@assays$RNA@data)[startsWith(rownames(combined@assays$RNA@data),"Csf")]
 
 # HSPC markers - see https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5969381/
 FeaturePlot(combined, features = "rna_Cd34")+scale_colour_gradientn(colors = mycols)
@@ -134,14 +137,41 @@ FeaturePlot(combined, features = "rna_Ly6g")+scale_colour_gradientn(colors = myc
 #
 FeaturePlot(combined, features = "rna_Siglecf")+scale_colour_gradientn(colors = mycols)
 
-
+#### --- Doublets and debris ---- ####
 VlnPlot(combined,
         features = c('nCount_peaks', 'TSS.enrichment', 'blacklist_fraction', 'nucleosome_signal', 'pct_reads_in_peaks'),
         pt.size = 0,
-        ncol = 3
-)
+        ncol = 3)
+
 FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors = mycols)
-# is cl 5 just debris??? - Yes
+
+DimPlot(combined, label = T, group.by = "ATAC_snn_res.0.2")
+
+combined@meta.data$pos_doub <- NA
+combined@meta.data[combined@meta.data$nCount_peaks>90000,]$pos_doub <- "doublet"
+dim(combined@meta.data)[1]
+dim(combined@meta.data[!is.na(combined@meta.data$pos_doub),])[1]
+dim(combined@meta.data[!is.na(combined@meta.data$pos_doub),])[1]/dim(combined@meta.data)[1]*100
+DimPlot(combined, label = T, group.by = "pos_doub")
+
+combined@meta.data$pos_deb <- NA
+combined@meta.data[combined@meta.data$nCount_peaks<4500,]$pos_deb <- "debris"
+dim(combined@meta.data)[1]
+dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]
+dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]/dim(combined@meta.data)[1]*100
+DimPlot(combined, label = T, group.by = "pos_deb")
+
+## clus 17 at re.0.9 - debris
+rem_cells <- c(rownames(combined@meta.data[!is.na(combined@meta.data$pos_doub),]),
+               rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.9==17,]))
+length(Cells(combined))
+length(rem_cells)
+length(rem_cells)/length(Cells(combined))*100
+combined <- subset(combined, cells = Cells(combined)[!Cells(combined) %in% rem_cells])
+
+
+FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors = mycols)
+
 
 #### ---- Use external data set to identify cells instead ---- ####
 # data set from https://www.nature.com/articles/s41556-019-0439-6 (preprocessed Seurat object)
@@ -189,7 +219,7 @@ DimPlot(NicheData10x, group.by = "uplev_ID", label = T)+NoLegend()
 var_gens <- ClosestFeature(combined, VariableFeatures(combined))
 var_gens <- unique(var_gens$gene_name)
 
-uplev_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,NicheData10x,"uplev_ID","RNA")
+uplev_corr <- cluster_corr(combined,"ATAC_snn_res.0.2","RNA",var1 = var_gens ,NicheData10x,"uplev_ID","RNA")
 heatmap(as.matrix(uplev_corr), scale = "none", trace="none", density ="none",
         dendrogram = "column",
         col = c(rep("#313695",15),mycols),
@@ -197,7 +227,7 @@ heatmap(as.matrix(uplev_corr), scale = "none", trace="none", density ="none",
         ColSideColors = unlist(as.list(hue_pal()(ncol(uplev_corr)))), xlab = deparse(substitute(NicheData10x)),# labCol = "",
         margins = c(11,5))
 
-ID_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,NicheData10x,"ID","RNA")
+ID_corr <- cluster_corr(combined,"ATAC_snn_res.0.2","RNA",var1 = var_gens ,NicheData10x,"ID","RNA")
 heatmap(as.matrix(ID_corr), scale = "none", trace="none", density ="none",
         dendrogram = "column",
         col = c(rep("#313695",15),mycols),
@@ -205,7 +235,7 @@ heatmap(as.matrix(ID_corr), scale = "none", trace="none", density ="none",
         ColSideColors = unlist(as.list(hue_pal()(ncol(ID_corr)))), xlab = deparse(substitute(NicheData10x)),# labCol = "",
         margins = c(8,5))
 
-ID_sub_corr <- cluster_corr(combined,"ATAC_snn_res.0.4","RNA",var1 = var_gens ,
+ID_sub_corr <- cluster_corr(combined,"ATAC_snn_res.0.2","RNA",var1 = var_gens ,
                             subset(NicheData10x, cells = rownames(NicheData10x@meta.data[NicheData10x@meta.data$uplev_ID %in% c("immune","HSPC","EC"),])),
                             "ID","RNA")
 heatmap(as.matrix(ID_sub_corr), scale = "none", trace="none", density ="none",
