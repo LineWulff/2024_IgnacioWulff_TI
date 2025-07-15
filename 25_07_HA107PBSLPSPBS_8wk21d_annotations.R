@@ -277,10 +277,10 @@ for (col in colnames(ND_DEGs)){
   feat_plot <- FeaturePlot(combined, features = paste(col,1, sep = ""))+
     scale_colour_gradientn(colors = mycols)
   vln_plot <- VlnPlot(combined, features = paste(col,1, sep = ""), pt.size = 0)
-  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.4_UMAPfeatPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.2_UMAPfeatPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
   print(feat_plot)
   dev.off()
-  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.4_VlnPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
+  pdf(paste(RAID_dir,"/", project, "/output/", dato, "AllCells_res0.2_VlnPlot_BaccinData_",col , ".pdf", sep = ""), height = 5, width = 5)
   print(vln_plot)
   dev.off()
 }
