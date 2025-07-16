@@ -161,6 +161,8 @@ dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]
 dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]/dim(combined@meta.data)[1]*100
 DimPlot(combined, label = T, group.by = "pos_deb")
 
+
+#### --- removing cells 1 ---- ####
 ## clus 17 at re.0.9 - debris
 rem_cells <- c(rownames(combined@meta.data[!is.na(combined@meta.data$pos_doub),]),
                rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.9==17,]))
@@ -284,3 +286,63 @@ for (col in colnames(ND_DEGs)){
   print(vln_plot)
   dev.off()
 }
+
+#### ---- Removing cells 2 ---- ####
+## CLuster 7 non immune cells
+## Cluster 9 - non cells
+rem_cells <- rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% c(7,9),])
+length(Cells(combined))
+length(rem_cells)
+length(rem_cells)/length(Cells(combined))*100
+combined <- subset(combined, cells = Cells(combined)[!Cells(combined) %in% rem_cells])
+
+# save res.0.2 in meta for future reference
+combined@meta.data$v1_res.0.2 <- combined@meta.data$ATAC_snn_res.0.2 
+
+## recalculate clustering and umap
+DefaultAssay(combined) <- "ATAC"
+combined <- RunTFIDF(combined)
+combined <- FindTopFeatures(combined, min.cutoff = 20)
+combined <- RunSVD(combined)
+combined <- RunUMAP(combined, dims = 2:50, reduction = 'lsi')
+combined <- FindNeighbors(object = combined, reduction = 'lsi', dims = 2:30)
+res <- seq(0,1,0.1)
+combined <- FindClusters(object = combined, verbose = FALSE, algorithm = 3, resolution = res)
+
+DimPlot(combined, group.by = "v1_res.0.2", label = T)
+DimPlot(combined, group.by = "ATAC_snn_res.0.1", label = T)
+DimPlot(combined, group.by = "ATAC_snn_res.0.2", label = T)
+
+## Now we can annotate monocytes in more detail:
+FeaturePlot(combined, features = "rna_Ly6c2")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ly6c1")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(combined, features = "rna_Ccr2")+scale_colour_gradientn(colors = mycols)
+
+## at res.0.2
+# 0 - Ly6c hi monocytes
+# 1,5,2 - Ly6c lo monocytes
+
+#### ---- Adding cluster IDs ---- ####
+Ly6chimono <- 0
+Ly6clomono <- c(1,2,5)
+DCs <- 6
+NKcells <- 7
+LSK <- 4
+Neutro <- 3
+
+combined@meta.data$ID_labs <- NA
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% Ly6clomono,]$ID_labs <- "Ly6c lo monocytes"
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% Ly6chimono,]$ID_labs <- "Ly6c hi monocytes"
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% DCs,]$ID_labs <- "Dendritic cells"
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% NKcells,]$ID_labs <- "NK cells"
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% LSK,]$ID_labs <- "LSK"
+combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% Neutro,]$ID_labs <- "Neutrophils"
+unique(combined@meta.data$ID_labs)
+combined@meta.data$ID_labs <- factor(combined@meta.data$ID_labs, levels = c("Ly6c lo monocytes","Ly6c hi monocytes",
+                                                                            "LSK","Neutrophils","Dendritic cells",
+                                                                            "NK cells"))
+#combined@meta.data[is.na(combined@meta.data$ID_labs),]
+DimPlot(combined, group.by = "ID_labs")
+
+#### ---- save object for further analysis from this point ---- ####
+saveRDS(combined, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2.rds"))

@@ -300,36 +300,6 @@ ggplot(dist_df, aes(x=cluster, y=percent, fill=samp))+
   geom_bar(stat="identity", colour="black",position = "dodge")+
   theme(axis.text.x = element_text(angle=90))
 
-
-#### ---- Transfer labels from Sahers analysis ---- ####
-old_meta <- read.csv(paste(projdir,"/Outputs/Clustering/25_07_118wkcombined_metadata_SaherAnalysis.csv",sep = ""), header = T, row.names = 1)
-head(old_meta)
-tail(old_meta)
-head(combined@meta.data)
-old_meta[old_meta$dataset=="TPBS_PBS",]$dataset <- "PBS_PBS"
-old_meta$timepoint <- "8wk"
-old_meta$colonization <- unlist(str_split(old_meta$dataset, "_"))[seq(1,length(rownames(old_meta))*2,2)]
-old_meta$stimulation <- unlist(str_split(old_meta$dataset, "_"))[seq(2,length(rownames(old_meta))*2,2)]
-unique(old_meta$stimulation)
-unique(old_meta$colonization)
-old_meta$orig.ident <- paste("BM",old_meta$colonization,old_meta$stimulation,"8wk", sep = "-")
-unique(old_meta$orig.ident)
-rownames(old_meta) <- paste(old_meta$orig.ident, old_meta$barcode, sep = "_")
-length(rownames(old_meta))
-rownames(old_meta)[rownames(old_meta) %in% rownames(combined@meta.data)]
-rownames(old_meta)[1]
-rownames(combined@meta.data)[1]
-
-old_meta$barcode <- str_sub(old_meta$barcode, start = 1, end = -3)
-old_meta$barcode <- paste(old_meta$barcode, "-1", sep = "")
-oldone <- "ACGACAAAGGCGGGTA-1"
-oldupt <- "TGCTGTTTCCGCCCAT-1"
-
-combined@meta.data$barcode <- unlist(str_split(Cells(combined),"_"))[seq(2,length(Cells(combined))*2,2)]
-combined@meta.data$barcode <- str_sub(combined@meta.data$barcode, start = 1, end = -3)
-old_meta$barcode[old_meta$barcode %in% combined@meta.data$barcode]
-## Somehow not working
-
 # change back to working with peaks instead of gene activities
 DefaultAssay(combined) <- 'ATAC'
 
