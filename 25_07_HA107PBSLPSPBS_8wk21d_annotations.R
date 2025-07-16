@@ -345,4 +345,4 @@ combined@meta.data$ID_labs <- factor(combined@meta.data$ID_labs, levels = c("Ly6
 DimPlot(combined, group.by = "ID_labs")
 
 #### ---- save object for further analysis from this point ---- ####
-saveRDS(combined, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2.rds"))
+saveRDS(combined, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2.rds",sep="_"))
