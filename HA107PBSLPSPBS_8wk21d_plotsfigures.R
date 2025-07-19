@@ -194,7 +194,27 @@ ggplot(dist_df, aes(x=samp, y=percent, fill=cluster))+
 dev.off()
 
 len <- dim(dist_df)[1]
-dist_df$colonization <- unlist(str_split(dist_df$samp,"-"))[seq(2,len*4,4)]
+dist_df$colonization <- factor(unlist(str_split(dist_df$samp,"-"))[seq(2,len*4,4)], levels=c("PBS","HA107"))
 dist_df$timepoint <- unlist(str_split(dist_df$samp,"-"))[seq(4,len*4,4)]
-dist_df$stimulation <- unlist(str_split(dist_df$samp,"-"))[seq(3,len*4,4)]
+dist_df$stimulation <- factor(unlist(str_split(dist_df$samp,"-"))[seq(3,len*4,4)], levels=c("PBS","LPS"))
 
+pdf(paste(outdir,dato,"_Distribution_PersampleStacked_ColxStimxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=colonization, y=percent, fill=cluster))+
+  geom_bar(stat="identity", colour="black", width=0.8)+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~stimulation)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+pdf(paste(outdir,dato,"_Distribution_PersampleDodge_ColxStimxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=colonization, y=percent, fill=stimulation))+
+  geom_bar(stat="identity", colour="black",position = "dodge")+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~cluster)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+
+saveRDS(dist_df, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2_distdf.rds",sep="_"))
+
+#### ---- DAR analysis outputs ---- ####
