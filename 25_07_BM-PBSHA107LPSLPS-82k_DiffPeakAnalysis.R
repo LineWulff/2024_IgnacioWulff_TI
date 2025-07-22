@@ -372,3 +372,5 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 ## save in excel format
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSPBSLPS21d.xlsx", sep = ""),
            rowNames = T)
+
+
