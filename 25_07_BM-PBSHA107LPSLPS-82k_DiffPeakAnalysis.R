@@ -45,6 +45,7 @@ combined <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_
 Idents(combined) <- 'ID_labs'
 DefaultAssay(combined) <- 'ATAC'
 
+sheets <- c("cluster_Ly6c lo monocytes","cluster_Neutrophils","cluster_Dendritic cells","cluster_LSK","cluster_Ly6c hi monocytes","cluster_NK cells")
 
 #### ---- Running DAR between conditions --- ####
 # 6 loops
@@ -53,8 +54,31 @@ edb <- EnsDb.Mmusculus.v79
 seqlevelsStyle(edb) <- "UCSC"
 peakAnno.edb <- annotatePeak(combined@assays$ATAC@ranges, tssRegion=c(-3000, 3000),
                              TxDb = edb)
+# color control for annotations
+annotations_gen <- peakAnno.edb@anno$annotation
+for (ann in annotations_gen[startsWith(annotations_gen, "Intron")]){
+  if ( unlist(str_split(ann," "))[4] == "1" ){
+    annotations_gen[annotations_gen==ann]<- "1st Intron"}
+  else {
+    annotations_gen[annotations_gen==ann] <- "Other Intron"
+  }}
+# exons
+for (ann in annotations_gen[startsWith(annotations_gen, "Exon")]){
+  if ( unlist(str_split(ann," "))[4] == "1" ){
+    annotations_gen[annotations_gen==ann] <- "1st Exon"}
+  else {
+    annotations_gen[annotations_gen==ann] <- "Other Exon"
+  }}
+length(annotations_gen) # should be 208k
+# make a color chart
+ann_col_val <- hue_pal()(length(unique(annotations_gen)))
+names(ann_col_val) <- unique(annotations_gen)
+ann_col_val
+show_col(ann_col_val)
+
 outdir <- "/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions"
-  
+
+
 #### ---- PBS-PBS-8wk vs HA107-PBS-8wk ---- ####
 DA_peaks_conditions <- list()
 Idents(combined) <- "orig.ident"
@@ -108,6 +132,56 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond.xlsx", sep = ""),
            rowNames = T)
 
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_PBSvsPBS_8wk/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107LPSvsPBSLPS8wk.xlsx", sep = ""),
+           rowNames = T)
+
+
 #### ---- PBS-LPS-8wk vs HA107-LPS-8wk ---- ####
 DA_peaks_conditions <- list()
 Idents(combined) <- "orig.ident"
@@ -160,6 +234,55 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 ## save in excel format
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107LPSvsPBSLPS8wk.xlsx", sep = ""),
            rowNames = T)
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_LPSvsLPS_8wk/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107LPSvsPBSLPS8wk.xlsx",
+         colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107LPSvsPBSLPS8wk.xlsx", sep = ""),
+           rowNames = T)
+
 
 #### ---- PBS-PBS-8wk vs PBS-LPS-8wk ---- ####
 DA_peaks_conditions <- list()
@@ -211,6 +334,55 @@ for (clus in unique(combined@meta.data$ID_labs)){
 names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep = "_")
 
 ## save in excel format
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx", sep = ""),
+           rowNames = T)
+
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/PBSvsPBS_PBSvsLPS_8wk/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx", sep = ""),
            rowNames = T)
 
@@ -266,6 +438,55 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 ## save in excel format
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSHA107PBSPBS21d.xlsx", sep = ""),
            rowNames = T)
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_PBSvsPBS_21d/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSHA107PBSPBS21d.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107PBSvsPBSPBS21d.xlsx", sep = ""),
+           rowNames = T)
+
 
 #### ---- PBS-LPS-21d vs HA107-LPS-21d ---- ####
 DA_peaks_conditions <- list()
@@ -320,6 +541,56 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSHA107LPSLPS21d.xlsx", sep = ""),
            rowNames = T)
 
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_LPSvsLPS_21d/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSHA107LPSLPS21d.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107PBSvsPBLPSLPS21d.xlsx", sep = ""),
+           rowNames = T)
+
+
 #### ---- PBS-PBS-21d vs PBS-LPS-21d ---- ####
 DA_peaks_conditions <- list()
 Idents(combined) <- "orig.ident"
@@ -373,4 +644,161 @@ names(DA_peaks_conditions) <- paste("cluster", names(DA_peaks_conditions), sep =
 write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSPBSLPS21d.xlsx", sep = ""),
            rowNames = T)
 
+### Read in and add gene names and annotations
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/PBSvsPBS_PBSvsLPS_8wk/DiffPeaksConditions25_07_16_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
 
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+  
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx", sep = ""),
+           rowNames = T)
+
+
+#### test ####
+## Read in and correct csv file
+
+
+for (clus in names(DA_peaks_conditions)){
+  ## Add gene names
+  open_regs <- rownames(DA_peaks_conditions[[clus]])
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs)
+  DA_peaks_conditions[[clus]]$gene_name <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$gene_name <- closest_genes$gene_name
+  
+  ## Add annotation
+  closest_genes <- ClosestFeature(subset(combined@assays$ATAC, cells = rownames(combined@meta.data[combined@meta.data$ID_labs==clus,])),
+                                  regions = open_regs, annotation = peakAnno.edb@anno)
+  ## Collapse annotations for exon and introns
+  closest_genes$annotation_upd <- closest_genes$annotation
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Intron"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Intron"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Intron"
+    }
+  }
+  # exons
+  for (ann in closest_genes[startsWith(closest_genes$annotation, "Exon"),]$annotation){
+    if ( unlist(str_split(ann," "))[4] == "1" ){
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "1st Exon"
+    }
+    else {
+      closest_genes[closest_genes$annotation==ann,]$annotation_upd <- "Other Exon"
+    }
+  }
+
+  
+  DA_peaks_conditions[[clus]]$annotation <-NA
+  DA_peaks_conditions[[clus]][rownames(DA_peaks_conditions[[clus]]) %in% closest_genes$query_region,]$annotation <- closest_genes$annotation_upd
+  # print head to check output
+  print(head(DA_peaks_conditions[[clus]]))}
+
+## Bar and volcano plots highlighting annotations
+acc_stat_df <- as.data.frame(summary(as.factor(DA_peaks_conditions[[clus]]$annotation)))
+colnames(acc_stat_df) <- 'amount'
+acc_stat_df <- cbind(acc_stat_df, annotation=rownames(acc_stat_df))
+ggplot(acc_stat_df, aes(x=annotation, y=amount, fill=annotation))+
+  geom_bar(stat="identity")+
+  theme_classic()+
+  scale_fill_manual(values = ann_col_val)+
+  theme(axis.text.x = element_text(angle = 90))
+
+## same as above but split into up vs down reg
+acc_dat <- DA_peaks_conditions[[clus]]
+acc_dat$type_reg <- paste(acc_dat$annotation,acc_dat$sign,sep = '_')
+acc_stat_df <- as.data.frame(summary(as.factor(acc_dat$type_reg)))
+colnames(acc_stat_df) <- 'amount'
+acc_stat_df <- cbind(acc_stat_df, annotation=rownames(acc_stat_df))
+acc_stat_df$sign <- unlist(str_split(acc_stat_df$annotation, "_"))[seq(2,length(acc_stat_df$amount)*2,2)]
+acc_stat_df$annotation <- unlist(str_split(acc_stat_df$annotation, "_"))[seq(1,length(acc_stat_df$amount)*2,2)]
+ggplot(acc_stat_df, aes(x=annotation, y=amount, fill=annotation))+
+  geom_bar(stat="identity")+
+  facet_wrap(.~sign)+
+  scale_fill_manual(values = ann_col_val)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90))
+
+## freq of DAR annotations
+DAsum <- rowsum(acc_stat_df$amount, group=acc_stat_df$sign)
+acc_stat_df$freq <- 0; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[1],]$freq <- DAsum[1]; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[2],]$freq <- DAsum[2];
+acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$freq*100
+acc_stat_df$annotation <- factor(acc_stat_df$annotation ,
+                                 levels = c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)",
+                                            "1st Intron","Other Intron","Other Exon","3' UTR","Downstream (<=300bp)"))
+
+ggplot(acc_stat_df, aes(x=sign, y=freq, fill=annotation))+
+  geom_bar(stat="identity", colour = "black")+
+  scale_fill_manual(values = ann_col_val)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90))
+
+
+## volcano plot
+ggplot(DA_peaks_conditions[[clus]], aes(x = avg_log2FC, y = -log10(p_val_adj), colour = annotation))+
+  geom_point_rast()+
+  geom_vline(xintercept = c(-0.25,0.25), linetype = "dashed")+ # sign. threshold
+  geom_hline(yintercept = c(-log10(0.05)), linetype = "dashed")+ # sign. threshold
+  geom_vline(xintercept = c(0))+ #0
+  scale_color_manual(values = ann_col_val)+
+  theme_classic()+
+  ylab("-log10(adj. p-value)")+xlab("avg. log2FC")+
+  guides(colour=guide_legend(title="OR Annotation"))
+
+gene_int <- c("Btg2", "Neat1", "Fos",   "Tex14", "Zfp36", "Fos")
+  #c("Fos","Cxcr4","Ifnar1","Zfp36","Sirpa","Litaf" ) #"E2f2","Ebf2","Spi1"
+
+
+ggplot(DA_peaks_conditions[[clus]], aes(x = avg_log2FC, y = -log10(p_val_adj), colour = annotation))+
+  geom_point_rast()+
+  geom_label_repel(data = DA_peaks_conditions[[clus]][DA_peaks_conditions[[clus]]$gene_name %in% gene_int,], 
+                   aes(x = avg_log2FC, y = -log10(p_val_adj), label = gene_name, fill = annotation), 
+                   color = "black", nudge_y = 75, show.legend=F, max.overlaps = 15)+
+  geom_vline(xintercept = c(-0.25,0.25), linetype = "dashed")+ # sign. threshold
+  geom_hline(yintercept = c(-log10(0.05)), linetype = "dashed")+ # sign. threshold
+  geom_vline(xintercept = c(0))+ #0
+  scale_color_manual(values = ann_col_val)+scale_fill_manual(values = ann_col_val)+
+  theme_classic()+
+  ylab("-log10(adj. p-value)")+xlab("avg. log2FC")+
+  guides(colour=guide_legend(title="Significance"))
