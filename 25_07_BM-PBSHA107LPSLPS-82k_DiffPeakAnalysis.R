@@ -694,7 +694,7 @@ write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_P
            rowNames = T)
 
 
-#### test ####
+#### ---- test for ditribution plots ---- ####
 ## Read in and correct csv file
 
 
@@ -735,6 +735,11 @@ for (clus in names(DA_peaks_conditions)){
   # print head to check output
   print(head(DA_peaks_conditions[[clus]]))}
 
+
+clus <- "cluster_Ly6c hi monocytes"
+clus <- "cluster_LSK"
+clus <- "cluster_Ly6c lo monocytes"
+
 ## Bar and volcano plots highlighting annotations
 acc_stat_df <- as.data.frame(summary(as.factor(DA_peaks_conditions[[clus]]$annotation)))
 colnames(acc_stat_df) <- 'amount'
@@ -762,18 +767,23 @@ ggplot(acc_stat_df, aes(x=annotation, y=amount, fill=annotation))+
 
 ## freq of DAR annotations
 DAsum <- rowsum(acc_stat_df$amount, group=acc_stat_df$sign)
+acc_stat_df$totDEG <- 0; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[1],]$totDEG <- DAsum[1]; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[2],]$totDEG <- DAsum[2];
 acc_stat_df$freq <- 0; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[1],]$freq <- DAsum[1]; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[2],]$freq <- DAsum[2];
-acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$freq*100
+acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$freq
 acc_stat_df$annotation <- factor(acc_stat_df$annotation ,
-                                 levels = c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)",
-                                            "1st Intron","Other Intron","Other Exon","3' UTR","Downstream (<=300bp)"))
-
+                                 levels = c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)","5' UTR",
+                                            "1st Intron","Other Intron","1st Exon","Other Exon","3' UTR","Downstream (<=300bp)"))
+pdf(paste(paste0(outdir,dato,"_HA107PBS_PBSPBS_21d_annotatedDARs_dist_Ly6clomono.pdf")),height = 2, width = 6)
 ggplot(acc_stat_df, aes(x=sign, y=freq, fill=annotation))+
   geom_bar(stat="identity", colour = "black")+
+  scale_y_continuous(labels = scales::percent)+
+  geom_text(data=acc_stat_df[acc_stat_df$annotation=="Promoter (<=1kb)",], aes(x=sign, label=totDEG, y=1.1, fill=NULL))+
   scale_fill_manual(values = ann_col_val)+
+  labs(y="",x="")+
   theme_classic()+
-  theme(axis.text.x = element_text(angle = 90))
-
+  theme(axis.text.x = element_text(angle = 90))+
+  coord_flip()
+dev.off()
 
 ## volcano plot
 ggplot(DA_peaks_conditions[[clus]], aes(x = avg_log2FC, y = -log10(p_val_adj), colour = annotation))+
@@ -802,3 +812,118 @@ ggplot(DA_peaks_conditions[[clus]], aes(x = avg_log2FC, y = -log10(p_val_adj), c
   theme_classic()+
   ylab("-log10(adj. p-value)")+xlab("avg. log2FC")+
   guides(colour=guide_legend(title="Significance"))
+
+#### ---- test for venn diagrams ---- ####
+Ly6himono_df <- list()
+Ly6clomono_df <- list()
+LSK_df <- list()
+
+## HA107-PBS vs PBS-PBS 8wk
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_PBSvsPBS_8wk/DiffPeaksConditions25_07_22_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107PBSvsPBSPBS8wk.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+Ly6himono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c hi monocytes"]]
+Ly6clomono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c lo monocytes"]]
+LSK_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_LSK"]]
+
+## HA107-PBS vs PBS-PBS 21d
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_PBSvsPBS_21d/DiffPeaksConditions25_07_22_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107PBSvsPBSPBS21d.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+Ly6himono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c hi monocytes"]]
+Ly6clomono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c lo monocytes"]]
+LSK_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_LSK"]]
+
+## HA107-LPS vs PBS-LPS 21d
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_LPSvsLPS_21d/DiffPeaksConditions25_07_22_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107PBSvsPBLPSLPS21d.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+Ly6himono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c hi monocytes"]]
+Ly6clomono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c lo monocytes"]]
+LSK_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_LSK"]]
+
+## HA107-LPS vs PBS-LPS 8wk
+DA_peaks_conditions <- list()
+for (i in seq(1,length(sheets[1:5]))){
+  print(i)
+  DA_clus <- read.xlsx("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/Outputs/DiffPeaksConditions/HA107vsPBS_LPSvsLPS_8wk/DiffPeaksConditions25_07_22_LSKMonoNeu_IDlabs_PerClusCompvsCond_HA107LPSvsPBSLPS8wk.xlsx",
+                       colNames = T, sheet = sheets[i], rowNames = T)
+  DA_peaks_conditions[[sheets[i]]] <- DA_clus
+}
+Ly6himono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c hi monocytes"]]
+Ly6clomono_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_Ly6c lo monocytes"]]
+LSK_df[[paste(unique(DA_peaks_conditions[[1]]$sign)[1],unique(DA_peaks_conditions[[1]]$sign)[2], sep = "_vs_")]] <- DA_peaks_conditions[["cluster_LSK"]]
+
+
+### test - both up and down 
+## more accessible in HA107, less in PBS
+# HA107-PBS vs PBS-PBS, shared 8wk and 21d
+# 1
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-HA"),]$gene_name,
+                      Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-HA"),]$gene_name))
+
+# HA107-PBS vs PBS-PBS, shared 8wk and 21d and shared with HA107-LPS vs PBS-LPS 8wk
+# 1
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-HA"),]$gene_name,
+                      Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-HA"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-HA"),]$gene_name))
+# HA107-PBS vs PBS-PBS and HA107-LPS vs PBS-LPS shared 8wk in HA107 samples
+# 12
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-HA"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-HA"),]$gene_name))
+
+# HA107-PBS vs PBS-PBS 21d shared with HA107-LPS vs PBS-LPS 8wk
+# 12
+Reduce(intersect,list(Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-HA"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-HA"),]$gene_name))
+
+
+## less accessible in HA107, more in PBS
+# HA107-PBS vs PBS-PBS, shared 8wk and 21d
+# 0
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-PB"),]$gene_name,
+                      Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-PB"),]$gene_name))
+
+# HA107-PBS vs PBS-PBS, shared 8wk and 21d and shared with HA107-LPS vs PBS-LPS 8wk
+# 0
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-PB"),]$gene_name,
+                      Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-PB"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-PB"),]$gene_name))
+
+# HA107-PBS vs PBS-PBS and HA107-LPS vs PBS-LPS shared 8wk in HA107 samples
+# 16
+Reduce(intersect,list(Ly6himono_df[[1]][startsWith(Ly6himono_df[[1]]$sign,"BM-PB"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-PB"),]$gene_name))
+
+# HA107-PBS vs PBS-PBS 21d shared with HA107-LPS vs PBS-LPS 8wk
+# 2
+Reduce(intersect,list(Ly6himono_df[[2]][startsWith(Ly6himono_df[[2]]$sign,"BM-PB"),]$gene_name,
+                      Ly6himono_df[[4]][startsWith(Ly6himono_df[[4]]$sign,"BM-PB"),]$gene_name))
+
+#### ---- Plotting genomic ranges with peaks --- ####
+## OBS!! CONNECT TO RAID SERVER, otherwise error will prompt because of missing path to index of fragments
+#regions_highlight <- subsetByOverlaps(StringToGRanges(int), LookupGeneCoords(combined, "Klf13"))
+
+CoveragePlot(
+  object = subset(combined, cells = rownames(combined@meta.data[combined@meta.data$ID_labs=="Ly6c hi monocytes" &
+                                                                  combined@meta.data$timepoint=='8wk',])),
+  region = "Fos",
+  #region.highlight = regions_highlight,
+  extend.upstream = 3000,
+  extend.downstream = 1000
+)
+
+frags <- Fragments(combined)
+frags[[1]]@path
