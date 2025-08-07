@@ -690,7 +690,7 @@ for (clus in names(DA_peaks_conditions)){
   # print head to check output
   print(head(DA_peaks_conditions[[clus]]))}
 
-write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS8wk.xlsx", sep = ""),
+write.xlsx(DA_peaks_conditions, file = paste(outdir, dato, "_LSKMonoNeu_IDlabs_PerClusCompvsCond_PBSPBSvsPBSLPS21d.xlsx", sep = ""),
            rowNames = T)
 
 
@@ -739,6 +739,7 @@ for (clus in names(DA_peaks_conditions)){
 clus <- "cluster_Ly6c hi monocytes"
 clus <- "cluster_LSK"
 clus <- "cluster_Ly6c lo monocytes"
+clus <- "cluster_Neutrophils"
 
 ## Bar and volcano plots highlighting annotations
 acc_stat_df <- as.data.frame(summary(as.factor(DA_peaks_conditions[[clus]]$annotation)))
@@ -773,7 +774,7 @@ acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$freq
 acc_stat_df$annotation <- factor(acc_stat_df$annotation ,
                                  levels = c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)","5' UTR",
                                             "1st Intron","Other Intron","1st Exon","Other Exon","3' UTR","Downstream (<=300bp)"))
-pdf(paste(paste0(outdir,dato,"_HA107PBS_PBSPBS_21d_annotatedDARs_dist_Ly6clomono.pdf")),height = 2, width = 6)
+pdf(paste(paste0(outdir,dato,"_HA107PBS_LPSLPS_21d_annotatedDARs_dist_",clus,".pdf")),height = 2, width = 6)
 ggplot(acc_stat_df, aes(x=sign, y=freq, fill=annotation))+
   geom_bar(stat="identity", colour = "black")+
   scale_y_continuous(labels = scales::percent)+

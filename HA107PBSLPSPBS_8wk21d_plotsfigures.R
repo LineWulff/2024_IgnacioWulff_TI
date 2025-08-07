@@ -214,6 +214,15 @@ ggplot(dist_df, aes(x=colonization, y=percent, fill=stimulation))+
   facet_grid(timepoint~cluster)+
   theme(axis.text.x = element_text(angle=90))
 dev.off()
+pdf(paste(outdir,dato,"_Distribution_PersampleDodge_StimxColxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=stimulation, y=percent, fill=colonization))+
+  geom_bar(stat="identity", colour="black",position = "dodge")+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~cluster)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+
 
 saveRDS(dist_df, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2_distdf.rds",sep="_"))
 
