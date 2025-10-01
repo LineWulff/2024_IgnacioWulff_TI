@@ -19,6 +19,9 @@ library(scales)
 library(matrixStats)
 library(openxlsx)
 library(ggrastr)
+library(plot3D)
+library(rgl)
+library(plotly)
 
 #### ---- variables used throughout script ---- ####
 rm(list = ls())
@@ -75,7 +78,7 @@ DimPlot(combined, group.by = 'orig.ident', pt.size = 0.1)
 
 
 comb_low <- RunTFIDF(comb_low)
-comb_low <- FindTopFeatures(comb_low, min.cutoff = "q95", assay = "ATAC")
+comb_low <- FindTopFeatures(comb_low, min.cutoff = "q99", assay = "ATAC")
 length(VariableFeatures(comb_low)) #208510
 
 combined[["ATAC"]]
@@ -85,15 +88,33 @@ comb_low@active.assay <- "ATAC"
 comb_low[["RNA"]] <- NULL #for smaller version
 saveRDS(comb_low, file = "250822_NoRNA_monocytes.rds")
 
-#### ---- Open and adjust tspace objects ---- ####
-subs1 <- readRDS(file="/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/tspace_output/250822_NoAssays_monocytes_tspacefile.rds")
+combined[["ATAC"]]
+combined[["RNA"]]
+comb_low <- combined
+comb_low@active.assay <- "RNA"
+comb_low[["ATAC"]] <- NULL #for smaller version
+comb_low <-FindVariableFeatures(comb_low, nfeatures = 1000, selection.method = "vst")
+saveRDS(comb_low, file = "250925_NoATAC_monocytes.rds")
 
-head(subs1$ts_file)
+
+#### ---- Open and adjust tspace objects ---- ####
+subs1 <- readRDS(file="/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/tspace_output/250925_NoATAC_monocytes_tspacefile.rds")
+
+subs1$ts_file[1:5,1:20]
 visu <- subs1$ts_file
 visu <- cbind(visu, combined@meta.data[rownames(visu),])
+rownames(subs1$tspace_matrix) <- rownames(visu)
+# exclude cells obased on below
+ggplot(visu, aes(x=umap1, y=umap2, color=ID_labs))+
+  geom_point()+geom_hline(yintercept = -10)+geom_vline(xintercept = -7)
+
+
+Excl_cells <- rownames(visu[visu$umap1<(-7) & visu$umap2<(-10),])
+visu <- visu[!rownames(visu) %in% Excl_cells,]
 #visu <- visu[!visu$F2F5 %in% c("cDC2","cDC3","amb","HLA low"),]
 #visu <- cbind(visu, DC_subs@reductions$umap@cell.embeddings[rownames(visu),])
 #visu <- cbind(visu, idents=Idents(DC_subs)[rownames(visu)])
+incl_genes <- colnames(visu)[14:1013]
 
 
 #distance from monocytes
@@ -104,11 +125,143 @@ visu <- cbind(visu, combined@meta.data[rownames(visu),])
 
 #### Adding new trajectory based clustering ####
 visu_obj <- subset(combined, cells = rownames(visu))
-visu_obj@reductions$lsi@cell.embeddings <- as.matrix(visu[,startsWith(colnames(visu),"LSI")])
+visu_obj@reductions$lsi@cell.embeddings <- as.matrix(visu[,startsWith(colnames(visu),"tPC")])
 
-visu_obj <- RunUMAP(object = visu_obj, reduction = 'lsi', dims = 2:30)
+visu_obj <- RunUMAP(object = visu_obj, reduction = 'lsi', dims = 2:10, n.components = 2)
+visu_obj@reductions$umap@cell.embeddings <- as.matrix(visu[,startsWith(colnames(visu),"umap")])
+colnames(visu_obj@reductions$umap@cell.embeddings) <- c("umap_1","umap_2")
 
-DimPlot(visu_obj, group.by = "ID_labs")
+DimPlot(visu_obj, dims = c(1,2),group.by = "ID_labs")
+DimPlot(visu_obj, dims = c(1,2),group.by = "colonization")
+DimPlot(visu_obj, dims = c(1,2),group.by = "stimulation", split.by = "colonization")
+DimPlot(visu_obj, dims = c(1,2),group.by = "timepoint", split.by = "colonization")
+FeaturePlot(visu_obj, features = c("Ly6c2"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+#FeaturePlot(visu_obj, features = c("Ly6c1"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Ccr2"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+# trajectory strating point, based:
+# https://rupress.org/jem/article/213/11/2293/42007/CXCR4-identifies-transitional-bone-marrow
+FeaturePlot(visu_obj, features = c("Myb"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Cxcr4"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Kit"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Mpo"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Ctsg"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Elane"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, features = c("Cdca7"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
 
+
+# potential starting points based on above
 ggplot(visu, aes(x=umap1, y=umap2, color=ID_labs))+
+  geom_point()+geom_hline(yintercept = 9)+geom_vline(xintercept = c(-7,-2))
+
+ggplot(visu, aes(x=tPC1, y=tPC2, color=ID_labs))+
   geom_point()
+ggplot(visu, aes(x=tPC3, y=tPC4, color=stimulation))+
+  geom_point()
+
+#### 3D visualization ####
+visu <- cbind(visu, visu_obj@reductions$umap@cell.embeddings)
+visu$colIDlabs <- NA
+for (i in 1:length(unique(visu$ID_labs))){
+  cl <- sort(unique(visu$ID_labs))[i]
+  visu[visu$ID_labs == cl,]$colIDlabs <- hue_pal()(length(unique(visu$ID_labs)))[i]
+  print(hue_pal()(length(unique(visu$ID_labs)))[i])
+  print(cl)
+}
+
+
+plot3d(x=visu[,"umap_1"],y=visu[,"umap_2"],z=visu[,"umap_3"],
+       col=visu$colIDlabs,
+       xlab = "UMAP_1",ylab = "UMAP_2",zlab = "UMAP_3")
+writeWebGL(dir ="/Volumes/Mucosal-Immunology/WA group/Tom and Line data/cLP_SILP_merged/R6/trajectories/tspace/monomac_woprol/",filename=paste(dato,project,traj_sub,"res2.8_3D.html", sep="_"))
+
+#### Distance from monocytes
+#distance from Ly6c hi monocytes at top corner - geom_hline(yintercept = 9)+geom_vline(xintercept = c(-7,-2))
+ly6lotop <- rownames(visu[visu$umap2>9 & visu$umap1>(-7) & visu$umap1<(-2) ,]) #& visu$umap1<(-1)
+ly6lotop_cells <- rownames(visu)[which(visu$Index %in% as.numeric(str_sub(colnames(subs1$tspace_matrix)[which(colnames(subs1$tspace_matrix) %in% paste0('T_', visu[ly6lotop, 'Index']))],start=3,end=-1)))]
+ly6lo.trajectories <- subs1$tspace_matrix[rownames(visu),which(colnames(subs1$tspace_matrix) %in% paste0('T_', visu[ly6lotop, 'Index']))]
+colnames(ly6lo.trajectories) <- c("T_1","T_2","T_3")
+visu <- cbind(visu, dist_ly6lotop=ly6lo.trajectories)
+visu$T_mean <-rowMeans(ly6lo.trajectories)
+
+ggplot(visu, aes(x=umap1,y=umap2,color=T_mean))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=umap1,y=umap2),color="lightgrey",shape=8,size=4,)+
+#  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+    scale_color_viridis_c(option = "magma")+
+  theme_classic()
+
+
+ggplot(visu, aes(x=umap1,y=umap2,color=ATAC_snn_res.0.4))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=umap1,y=umap2),color="lightgrey",shape=8,size=4,)+
+  theme_classic()
+
+ggplot(visu, aes(x=umap1,y=umap2,color=ID_labs))+
+  geom_density_2d()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=umap1,y=umap2),color="black",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  facet_grid(stimulation~colonization)
+theme_classic()
+
+### Trying something different
+ggplot(visu, aes(x=T_mean,y=tPC2,color=T_mean))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="lightgrey",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  scale_color_viridis_c(option = "magma")+
+  theme_classic()
+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="lightgrey",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  theme_classic()
+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
+  geom_density_2d()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  facet_grid(stimulation~colonization)
+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  facet_grid(stimulation~colonization)
+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=orig.ident))+
+  geom_density_2d()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  facet_grid(stimulation~colonization)
+
+visu_obj@reductions$traj_emb <- visu_obj@reductions$umap
+visu_obj@reductions$traj_emb@cell.embeddings <- as.matrix(visu[,c("T_mean","tPC2")])
+visu_obj@reductions$traj_emb@cell.embeddings[,1] <- visu_obj@reductions$traj_emb@cell.embeddings[,1]*10
+visu_obj@reductions$traj_emb@cell.embeddings[,2] <- visu_obj@reductions$traj_emb@cell.embeddings[,2]*100
+colnames(visu_obj@reductions$traj_emb@cell.embeddings) <- c("umap_1","umap_2")
+
+
+# trajectory strating point, based:
+# https://rupress.org/jem/article/213/11/2293/42007/CXCR4-identifies-transitional-bone-marrow
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Myb"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Cxcr4"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Kit"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Mpo"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Ctsg"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Elane"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Cdca7"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Ly6c2"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Ccr2"), pt.size =0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
+
+
+## using plotly to regroup cells via selection tools
+
+p <- ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
+  geom_point()+
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
+  theme_classic()
+
+# Convert to an interactive Plotly graph
+plotly::ggplotly(p)
