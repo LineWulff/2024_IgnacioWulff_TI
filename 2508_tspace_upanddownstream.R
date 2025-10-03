@@ -5,15 +5,13 @@
 
 #### ---- Initiate libraries ---- ####
 library(ggplot2)
+library(plotly)
 library(stringr)
 library(ggrastr)
 library(viridis)
 library(scales)
 library(Signac)
 library(Seurat)
-library(biovizBase)
-library(EnsDb.Mmusculus.v79)
-library(GenomicRanges) 
 library(colorRamp2)
 library(scales)
 library(matrixStats)
@@ -21,7 +19,8 @@ library(openxlsx)
 library(ggrastr)
 library(plot3D)
 library(rgl)
-library(plotly)
+library(crosstalk)
+library(DT)
 
 #### ---- variables used throughout script ---- ####
 rm(list = ls())
@@ -99,6 +98,8 @@ saveRDS(comb_low, file = "250925_NoATAC_monocytes.rds")
 
 #### ---- Open and adjust tspace objects ---- ####
 subs1 <- readRDS(file="/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/tspace_output/250925_NoATAC_monocytes_tspacefile.rds")
+subs1 <- readRDS(file="/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/tspace_output/251002_NoATAC_monocytes_tspacefile.rds")
+
 
 subs1$ts_file[1:5,1:20]
 visu <- subs1$ts_file
@@ -130,8 +131,20 @@ visu_obj@reductions$lsi@cell.embeddings <- as.matrix(visu[,startsWith(colnames(v
 visu_obj <- RunUMAP(object = visu_obj, reduction = 'lsi', dims = 2:10, n.components = 2)
 visu_obj@reductions$umap@cell.embeddings <- as.matrix(visu[,startsWith(colnames(visu),"umap")])
 colnames(visu_obj@reductions$umap@cell.embeddings) <- c("umap_1","umap_2")
+visu_obj <- FindNeighbors(object = visu_obj, reduction = 'lsi', dims = 2:10)
+res <- seq(0.1,1,0.1)
+visu_obj <- FindClusters(object = visu_obj, verbose = FALSE, resolution = res)
+res <- seq(0.01,0.09,0.01)
+visu_obj <- FindClusters(object = visu_obj, verbose = FALSE, resolution = res)
+
+## Add clustering to visu df
+tclust <- visu_obj@meta.data[,c("ATAC_snn_res.0.09","ATAC_snn_res.0.08","ATAC_snn_res.0.07","ATAC_snn_res.0.1","ATAC_snn_res.0.2")]
+colnames(tclust) <- paste0("tsp_",colnames(tclust))
+visu <- cbind(visu,tclust)
 
 DimPlot(visu_obj, dims = c(1,2),group.by = "ID_labs")
+DimPlot(visu_obj, dims = c(1,2), group.by = "ATAC_snn_res.0.07")
+
 DimPlot(visu_obj, dims = c(1,2),group.by = "colonization")
 DimPlot(visu_obj, dims = c(1,2),group.by = "stimulation", split.by = "colonization")
 DimPlot(visu_obj, dims = c(1,2),group.by = "timepoint", split.by = "colonization")
@@ -152,6 +165,10 @@ FeaturePlot(visu_obj, features = c("Cdca7"), pt.size = 0.5)+scale_color_gradient
 # potential starting points based on above
 ggplot(visu, aes(x=umap1, y=umap2, color=ID_labs))+
   geom_point()+geom_hline(yintercept = 9)+geom_vline(xintercept = c(-7,-2))
+
+ggplot(visu, aes(x=umap1, y=umap2, color=ATAC_snn_res.0.1))+
+  geom_point()+geom_hline(yintercept = 9)+geom_vline(xintercept = c(-7,-2))
+
 
 ggplot(visu, aes(x=tPC1, y=tPC2, color=ID_labs))+
   geom_point()
@@ -174,7 +191,7 @@ plot3d(x=visu[,"umap_1"],y=visu[,"umap_2"],z=visu[,"umap_3"],
        xlab = "UMAP_1",ylab = "UMAP_2",zlab = "UMAP_3")
 writeWebGL(dir ="/Volumes/Mucosal-Immunology/WA group/Tom and Line data/cLP_SILP_merged/R6/trajectories/tspace/monomac_woprol/",filename=paste(dato,project,traj_sub,"res2.8_3D.html", sep="_"))
 
-#### Distance from monocytes
+#### --- Distance from monocytes ---- ####
 #distance from Ly6c hi monocytes at top corner - geom_hline(yintercept = 9)+geom_vline(xintercept = c(-7,-2))
 ly6lotop <- rownames(visu[visu$umap2>9 & visu$umap1>(-7) & visu$umap1<(-2) ,]) #& visu$umap1<(-1)
 ly6lotop_cells <- rownames(visu)[which(visu$Index %in% as.numeric(str_sub(colnames(subs1$tspace_matrix)[which(colnames(subs1$tspace_matrix) %in% paste0('T_', visu[ly6lotop, 'Index']))],start=3,end=-1)))]
@@ -229,7 +246,7 @@ ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
   #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
   facet_grid(stimulation~colonization)
 
-ggplot(visu, aes(x=T_mean,y=tPC2,color=orig.ident))+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=timepoint))+
   geom_density_2d()+
   geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
   #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
@@ -255,13 +272,60 @@ FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Cdca7"), pt.size = 0
 FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Ly6c2"), pt.size = 0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
 FeaturePlot(visu_obj, reduction = "traj_emb", features = c("Ccr2"), pt.size =0.5)+scale_color_gradientn(colors=c(mycols,rep('#a50026',10)))
 
-
-## using plotly to regroup cells via selection tools
-
-p <- ggplot(visu, aes(x=T_mean,y=tPC2,color=ID_labs))+
+ggplot(visu, aes(x=T_mean,y=tPC2,color=tsp_ATAC_snn_res.0.09))+
   geom_point()+
-  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)+
-  theme_classic()
+  geom_point(data=visu[ly6lotop_cells,],aes(x=T_mean,y=tPC2),color="black",shape=8,size=4,)
+  #  geom_point(data=visu[ly6lotop,],aes(x=umap1,y=umap2),color="black")+
+  #facet_grid(stimulation~colonization)
 
-# Convert to an interactive Plotly graph
-plotly::ggplotly(p)
+
+#### ---- Distribution of new tsp based clustering ---- ####
+dist_df <- perc_function_samp("ATAC_snn_res.0.09", Cells(visu_obj), visu_obj,"orig.ident")
+dist_df$samp <- factor(dist_df$samp, 
+                       levels = c("BM-PBS-PBS-21d","BM-PBS-PBS-8wk","BM-HA107-PBS-21d","BM-HA107-PBS-8wk","BM-HA107-LPS-21d","BM-HA107-LPS-8wk","BM-PBS-LPS-21d","BM-PBS-LPS-8wk"))
+
+pdf(paste(outdir,dato,"_Distribution_PersampleStacked.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=samp, y=percent, fill=cluster))+
+  geom_bar(stat="identity", colour="black")+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+
+pdf(paste(outdir,dato,"_Distribution_PersampleDodge.pdf",sep = ""),height = 4, width = 6)
+ggplot(dist_df, aes(x=samp, y=percent, fill=cluster))+
+  geom_bar(stat="identity", colour="black",position = "dodge")+
+  theme_classic()+
+  facet_grid(.~cluster)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+
+len <- dim(dist_df)[1]
+dist_df$colonization <- factor(unlist(str_split(dist_df$samp,"-"))[seq(2,len*4,4)], levels=c("PBS","HA107"))
+dist_df$timepoint <- unlist(str_split(dist_df$samp,"-"))[seq(4,len*4,4)]
+dist_df$stimulation <- factor(unlist(str_split(dist_df$samp,"-"))[seq(3,len*4,4)], levels=c("PBS","LPS"))
+
+pdf(paste(outdir,dato,"_Distribution_PersampleStacked_ColxStimxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=colonization, y=percent, fill=cluster))+
+  geom_bar(stat="identity", colour="black", width=0.8)+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~stimulation)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+pdf(paste(outdir,dato,"_Distribution_PersampleDodge_ColxStimxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=colonization, y=percent, fill=stimulation))+
+  geom_bar(stat="identity", colour="black",position = "dodge")+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~cluster)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
+pdf(paste(outdir,dato,"_Distribution_PersampleDodge_StimxColxTP.pdf",sep = ""),height = 4, width = 4.5)
+ggplot(dist_df, aes(x=stimulation, y=percent, fill=colonization))+
+  geom_bar(stat="identity", colour="black",position = "dodge")+
+  theme_classic()+
+  labs(x="", y="% of sample")+
+  facet_grid(timepoint~cluster)+
+  theme(axis.text.x = element_text(angle=90))
+dev.off()
