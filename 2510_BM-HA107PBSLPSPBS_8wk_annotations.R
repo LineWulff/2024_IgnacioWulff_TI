@@ -37,10 +37,10 @@ mycols<- myColorRamp(mycols, seq(1:50))
 ## Project and sample info
 proj_data_dir <- "/Volumes/Promise RAID/Line/projects/24_TI_IgnacioWulff/samples/"
 ## sample combination
-project <- "BM-PBSvsHA107-PBSvsLPS-21dvs8wk"
+project <- "BM-PBSvsHA107-PBS-8wk"
 
 #### --- Read in data ---- ####
-combined <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/25_07_14 PBSHA107PBALPS_8wk21d.rds")
+combined <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/25_10_03 PBSHA107PBALPS_8wk.rds")
 Idents(combined) <- 'ATAC_snn_res.0.2'
 
 #### ---- Cluster IDs using singular genes ---- #### 
@@ -148,14 +148,14 @@ FeaturePlot(combined, features = "nCount_peaks")+scale_colour_gradientn(colors =
 DimPlot(combined, label = T, group.by = "ATAC_snn_res.0.2")
 
 combined@meta.data$pos_doub <- NA
-combined@meta.data[combined@meta.data$nCount_peaks>90000,]$pos_doub <- "doublet"
+combined@meta.data[combined@meta.data$nCount_peaks>95000,]$pos_doub <- "doublet"
 dim(combined@meta.data)[1]
 dim(combined@meta.data[!is.na(combined@meta.data$pos_doub),])[1]
 dim(combined@meta.data[!is.na(combined@meta.data$pos_doub),])[1]/dim(combined@meta.data)[1]*100
 DimPlot(combined, label = T, group.by = "pos_doub")
 
 combined@meta.data$pos_deb <- NA
-combined@meta.data[combined@meta.data$nCount_peaks<4500,]$pos_deb <- "debris"
+combined@meta.data[combined@meta.data$nCount_peaks<4000,]$pos_deb <- "debris"
 dim(combined@meta.data)[1]
 dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]
 dim(combined@meta.data[!is.na(combined@meta.data$pos_deb),])[1]/dim(combined@meta.data)[1]*100
@@ -163,9 +163,9 @@ DimPlot(combined, label = T, group.by = "pos_deb")
 
 
 #### --- removing cells 1 ---- ####
-## clus 17 at re.0.9 - debris
+## clus 10,12 at re.0.5 - debris
 rem_cells <- c(rownames(combined@meta.data[!is.na(combined@meta.data$pos_doub),]),
-               rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.9==17,]))
+               rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.5 %in% c(10,12),]))
 length(Cells(combined))
 length(rem_cells)
 length(rem_cells)/length(Cells(combined))*100
@@ -289,8 +289,7 @@ for (col in colnames(ND_DEGs)){
 
 #### ---- Removing cells 2 ---- ####
 ## CLuster 7 non immune cells
-## Cluster 9 - non cells
-rem_cells <- rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% c(7,9),])
+rem_cells <- rownames(combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% c(7),])
 length(Cells(combined))
 length(rem_cells)
 length(rem_cells)/length(Cells(combined))*100
@@ -313,6 +312,14 @@ DimPlot(combined, group.by = "v1_res.0.2", label = T)
 DimPlot(combined, group.by = "ATAC_snn_res.0.1", label = T)
 DimPlot(combined, group.by = "ATAC_snn_res.0.2", label = T)
 
+VlnPlot(combined,
+        features = c('nCount_peaks', 'TSS.enrichment', 'blacklist_fraction', 'nucleosome_signal', 'pct_reads_in_peaks'),
+        pt.size = 0,
+        ncol = 3,
+        group.by = "ATAC_snn_res.0.2")
+
+
+
 ## Now we can annotate monocytes in more detail:
 FeaturePlot(combined, features = "rna_Ly6c2")+scale_colour_gradientn(colors = mycols)
 FeaturePlot(combined, features = "rna_Ly6c1")+scale_colour_gradientn(colors = mycols)
@@ -324,11 +331,11 @@ FeaturePlot(combined, features = "rna_Ccr2")+scale_colour_gradientn(colors = myc
 
 #### ---- Adding cluster IDs ---- ####
 Ly6chimono <- 0
-Ly6clomono <- c(1,2,5)
-DCs <- 6
-NKcells <- 7
+Ly6clomono <- c(1,3)
+DCs <- 5
+NKcells <- 6
 LSK <- 4
-Neutro <- 3
+Neutro <- 2
 
 combined@meta.data$ID_labs <- NA
 combined@meta.data[combined@meta.data$ATAC_snn_res.0.2 %in% Ly6clomono,]$ID_labs <- "Ly6c lo monocytes"
@@ -345,4 +352,4 @@ combined@meta.data$ID_labs <- factor(combined@meta.data$ID_labs, levels = c("Ly6
 DimPlot(combined, group.by = "ID_labs")
 
 #### ---- save object for further analysis from this point ---- ####
-saveRDS(combined, paste(dato,"PBSHA107PBALPS_8wk21d_clean_v2.rds",sep="_"))
+saveRDS(combined, paste(dato,"PBSHA107PBALPS_8wk_clean.rds",sep="_"))
