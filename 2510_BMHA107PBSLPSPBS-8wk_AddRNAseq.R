@@ -87,6 +87,8 @@ rnaint_assay <- RNAobj@assays$integrated
 RNAobj <- subset(combined, cells = cellsshared)
 RNAobj[["integrated"]] <- rnaint_assay
 
-FeaturePlot(RNAobj, features = "integrated_Mpo")+scale_colour_gradientn(colors = mycols)
+FeaturePlot(RNAobj, features = "rna_Ly6c2")+scale_colour_gradientn(colors = mycols)
+
+saveRDS(RNAobj,"/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/2510_PBSHA107PBALPS_8wk_wRNA.rds")
 
 
