@@ -487,7 +487,9 @@ dist_df$samp <- factor(dist_df$samp,
   
 saveRDS(visu, paste0(outdir,"2510_BM-HA107PBS-LPSPBS-21d8wk_MonocyteTraj_visudf.rds"))
 saveRDS(visu_obj, paste0(outdir,"2510_BM-HA107PBS-LPSPBS-21d8wk_MonocyteTraj_visuobj.rds"))
-  
+
+visu <- readRDS(paste0(outdir,"2510_BM-HA107PBS-LPSPBS-21d8wk_MonocyteTraj_visudf.rds"))
+visu_obj <- readRDS(paste0(outdir,"2510_BM-HA107PBS-LPSPBS-21d8wk_MonocyteTraj_visuobj.rds"))
 #### ---- Diff. Peak analysis on Q1-Q3 ---- ####
 DefaultAssay(visu_obj) <- 'ATAC'
 
