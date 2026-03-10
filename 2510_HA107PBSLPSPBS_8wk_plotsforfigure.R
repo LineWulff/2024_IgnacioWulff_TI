@@ -226,3 +226,92 @@ dev.off()
 
 saveRDS(dist_df, paste(dato,"PBSHA107PBALPS_8wk_clean_distdf.rds",sep="_"))
 
+#### mono trajectory gene exp ####
+visu <- readRDS("2510_BM-HA107PBS-LPSPBS-8wk_MonocyteTraj_visudf.rds")
+
+head(visu)
+
+## Monocyte separation - feature plots on UMAP
+pdf(paste(outdir,dato,"_tPC2xTmean_Ly6c2_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t6@data["Ly6c2",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Ly6c2")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Ly6c1_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t6@data["Ly6c1",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Ly6c1")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Ccr2_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t2@data["Ccr2",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Ccr2")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Cd34_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t6@data["Cd34",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Cd34")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Cx3cr1_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t6@data["Cx3cr1",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Cx3cr1")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Kit_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t6@data["Kit",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Kit")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_Spn_geneact.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@assays$imputed_t2@data["Spn",rownames(visu)]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Spn")+
+  theme()
+dev.off()
+
+#### Monocyte trajectory - PBMC and BM signatures ####
+# from https://www.sciencedirect.com/science/article/pii/S1074761317301838#mmc1, Fig 1C
+# Cl IV
+Ly6chiblood <- c("Fcrls","Irf7","Trem2","Ccr2","Igals3","Ifi30")
+# Cl VI
+Matmono <- c("Apoe","Cd36","Csf1r","Cx3cr1","Ciita","Itgax","H2-aa","Fcgr4","Nr4a1","Cd74","H2-ab1")
+
+obj <- AddModuleScore(obj, features = list(Ly6chiblood), ctrl = 100, name = "Ly6hiblood", assay = "imputed_t2")
+obj <- AddModuleScore(obj, features = list(Matmono), ctrl = 100, name = "Matmonoblood", assay = "imputed_t2")
+
+pdf(paste(outdir,dato,"_tPC2xTmean_Ly6chiBlood.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@meta.data[rownames(visu),"Ly6hiblood1"]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Blood\nLy6c high")+
+  theme()
+dev.off()
+pdf(paste(outdir,dato,"_tPC2xTmean_MatMonoBlood.pdf",sep = ""),height = 3, width = 4)
+ggplot(visu, aes(x=T_mean, y=tPC2, colour=obj@meta.data[rownames(visu),"Matmonoblood1"]))+
+  geom_point_rast(size=1)+
+  theme_classic()+
+  scale_colour_gradientn(colors = mycols)+
+  labs(x="Av. Pseudotime", y="tPC2", colour="Blood\nMat. mono")+
+  theme()
+dev.off()

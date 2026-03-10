@@ -5,6 +5,7 @@ library(ggplot2)
 library(ggrastr)
 library(dplyr)
 library(stringr)
+library(tidyr)
 library(EnsDb.Mmusculus.v79)
 library(ChIPseeker)
 library(GenomicRanges)
@@ -12,29 +13,24 @@ library(scales)
 library(Signac)
 library(Seurat)
 
-
-file_path <- "/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/BM-PBSHA107_PBSLPS_21d8wk/Outputs/tspace_DAR/25_11_11_MonoTrajQ1-Q3comp_TotalOverview_T1.xlsx"
+rm(list=ls())
 
 # Create output folder
-outdir <- "/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/BM-PBSHA107_PBSLPS_21d8wk/Outputs/tspace_DAR"
+outdir <- "/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/BM-PBSvsHA107-PBSvsLPS-8wk/DiffPeaks_v2/"
 dato <- str_sub(str_replace_all(Sys.Date(),"-","_"), 3, -1)
-proj <- "MonoTrajQ1-Q3comp"
-clus <- "T1"
+proj <- "BM_8wk_IDlabs"; project <- proj
+clus <- "Neutrophils"
+file_path <- paste0(outdir,"26_01_23_BM-LSKNeu-8wk_TotalOverview_Neutrophils.xlsx")
 #object related to analysis
-obj <- readRDS(paste0("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/BM-PBSHA107_PBSLPS_21d8wk/Outputs/tspace/","2510_BM-HA107PBS-LPSPBS-21d8wk_MonocyteTraj_visuobj.rds"))
-
+obj <- readRDS(paste0("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/2510_BM-HA107PBS-LPSPBS-8wk_MonocyteTraj_visuobj.rds"))
+obj <- readRDS("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/25_10_06_PBSHA107PBALPS_8wk_clean.rds") 
 
 edb <- EnsDb.Mmusculus.v79
 seqlevelsStyle(edb) <- "UCSC"
 peakAnno.edb <- annotatePeak(obj@assays$ATAC@ranges, tssRegion=c(-3000, 3000),
                              TxDb = edb)
 
-# Get sheet names
-sheets <- readxl::excel_sheets(file_path)
-cat("Found", length(sheets), "sheets:\n", paste(sheets, collapse = ", "), "\n\n")
-
-
-# color control for annotations
+### color control for annotations ####
 annotations_gen <- peakAnno.edb@anno$annotation
 for (ann in annotations_gen[startsWith(annotations_gen, "Intron")]){
   if ( unlist(str_split(ann," "))[4] == "1" ){
@@ -57,15 +53,43 @@ names(ann_col_val) <- c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)
 ann_col_val
 show_col(ann_col_val)
 
+tot_ann <- cbind(peakAnno.edb@annoStat,ID=rep(1,length(peakAnno.edb@annoStat$Feature)))
+levels(tot_ann$Feature) <- c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)","5' UTR",
+                                                       "1st Intron","Other Intron","1st Exon","Other Exon","3' UTR","Downstream (<=300bp)")
+
+pdf(paste(outdir,dato,project,"_DistTotalAnnotationObject.pdf",sep=""),height = 2, width = 6)
+ggplot(tot_ann, aes(x=ID,y=Frequency, fill=Feature))+
+  geom_bar(stat="identity", colour = "black")+
+  scale_fill_manual(values = ann_col_val)+
+  labs(y="",x="")+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90))+
+  coord_flip()
+dev.off()
+
+### Sheet processing start ####
+# Get sheet names
+sheets <- readxl::excel_sheets(file_path)
+cat("Found", length(sheets), "sheets:\n", paste(sheets, collapse = ", "), "\n\n")
+
 
 for (sh in sheets) {
   cat("Processing sheet:", sh, "\n")
   df <- readxl::read_excel(file_path, sheet = sh)
-  cond1 <- unlist(str_split(sh,"X"))[1]
+  if (grepl("_", sh, ignore.case = FALSE, fixed = FALSE)){
+    tiss <- unlist(str_split(sh,"-"))[1]
+    timep <- unlist(str_split(unlist(str_split(sh,"-"))[2],"_"))[1]
+    cond1 <- unlist(str_split(unlist(str_split(sh,"_"))[2],"X"))[1]
+    cond2 <- unlist(str_split(unlist(str_split(sh,"_"))[2],"X"))[2]
+    cond1 <- paste(tiss,cond1,timep, sep = "-")
+    cond2 <- paste(tiss,cond2,timep, sep = "-")
+    cat("Condition 1:", cond1, "\n")
+    cat("Condition 2:", cond2, "\n")
+  }
+  else {cond1 <- unlist(str_split(sh,"X"))[1]
   cond2 <- unlist(str_split(sh,"X"))[2]
   cat("Condition 1:", cond1, "\n")
-  cat("Condition 2:", cond2, "\n")
-  
+  cat("Condition 2:", cond2, "\n")}
   # Check that needed columns exist
   if (!all(c("avg_log2FC", "p_val_adj","sign") %in% names(df))) {
     warning(paste("Skipping sheet", sh, "- required columns missing"))
@@ -85,8 +109,8 @@ for (sh in sheets) {
     )
 
   # Split by significance so non-significant points are plotted first
-  nonsig <- df %>% filter(sign == "not sign.")
-  sig <- df %>% filter(sign != "not sign.")
+  nonsig <- df %>% dplyr::filter(sign == "not sign.")
+  sig <- df %>% dplyr::filter(sign != "not sign.")
   
   # Define consistent colors
   cols <- c("lightgrey", "#F8766D", "#00BFC4")
@@ -127,9 +151,11 @@ for (sh in sheets) {
 
   ## freq of DAR annotations
   DAsum <- rowsum(acc_stat_df$amount, group=acc_stat_df$sign)
-  acc_stat_df$totDEG <- 0; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[1],]$totDEG <- DAsum[1]; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[2],]$totDEG <- DAsum[2];
-  acc_stat_df$freq <- 0; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[1],]$freq <- DAsum[1]; acc_stat_df[acc_stat_df$sign==rownames(DAsum)[2],]$freq <- DAsum[2];
-  acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$freq
+  DAsum_df <- data.frame(sign = rownames(DAsum),totDEG = as.numeric(DAsum))
+  acc_stat_df <- acc_stat_df %>%
+    left_join(DAsum_df, by = "sign") %>%
+    mutate(totDEG = tidyr::replace_na(totDEG, 0))
+  acc_stat_df$freq <- acc_stat_df$amount/acc_stat_df$totDEG
   acc_stat_df$annotation <- factor(acc_stat_df$annotation ,
                                    levels = c("Distal Intergenic","Promoter (2-3kb)","Promoter (1-2kb)","Promoter (<=1kb)","5' UTR",
                                               "1st Intron","Other Intron","1st Exon","Other Exon","3' UTR","Downstream (<=300bp)"))
@@ -149,5 +175,74 @@ for (sh in sheets) {
 }
 
 
+#### Cell numbers per group ####
+visu_obj <- readRDS(paste0("/Users/linewulff/Documents/work/projects/2024_IgnacioWulff_TI/2510_BM-HA107PBS-LPSPBS-8wk_MonocyteTraj_visuobj.rds"))
 
+## first add Q1-Q3 info to monos
+obj@meta.data$ID_labs_ext <- as.character(obj$ID_labs)
+obj@meta.data[Cells(visu_obj),]$ID_labs_ext <- visu_obj$t_split
+df_count <- as.data.frame(table(obj$ID_labs_ext,obj$orig.ident))
+colnames(df_count) <- c("CellID_ext","Sample","CellCount")
 
+df_count %>% ggplot(aes(x=Sample,y=CellCount,fill=CellID_ext))+
+  geom_bar(stat="identity",colour="black")+
+  facet_wrap(.~CellID_ext)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 90))+
+  geom_hline(yintercept = c(250,500), linetype = "dashed")
+  
+
+#### CovergaePlots ####
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q1",])),
+  group.by = "orig.ident",
+  region = "Fos",
+  #region.highlight = regions_highlight,
+  extend.upstream = 4000,
+  extend.downstream = 3000
+)
+
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q1",])),
+  group.by = "orig.ident",
+  region = "Ier2",
+  #region.highlight = regions_highlight,
+  extend.upstream = 3000,
+  extend.downstream = 3000
+)
+
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q2",])),
+  group.by = "orig.ident",
+  region = "Fosb",
+  #region.highlight = regions_highlight,
+  extend.upstream = 3000,
+  extend.downstream = 3000
+)
+
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q1",])),
+  group.by = "orig.ident",
+  region = "Jund",
+  #region.highlight = regions_highlight,
+  extend.upstream = 3000,
+  extend.downstream = 3000
+)
+
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q1",])),
+  group.by = "orig.ident",
+  region = c("Cspg5","Dsel"),
+  #region.highlight = regions_highlight,
+  extend.upstream = 5000,
+  extend.downstream = 5000
+)
+
+CoveragePlot(
+  object = subset(obj, cells = rownames(obj@meta.data[obj@meta.data$ID_labs_ext=="Q1",])),
+  group.by = "orig.ident",
+  region = c("Cr2"),
+  #region.highlight = regions_highlight,
+  extend.upstream = 5000,
+  extend.downstream = 5000
+)
