@@ -59,15 +59,8 @@ inflam_genes <- hallmarks %>%
   filter(gs_name == "HALLMARK_INFLAMMATORY_RESPONSE") %>%
   pull(gene_symbol)
 
-library(Seurat)
-library(UCell)
-library(tidyverse)
-library(msigdbr)
 
 # ── 1. Get Hallmark gene sets ─────────────────────────────────────────────────
-hallmarks <- msigdbr(species = "Homo sapiens", category = "H") %>%
-  dplyr::select(gs_name, gene_symbol)
-
 ifn_genes <- hallmarks %>%
   filter(gs_name == "HALLMARK_INTERFERON_ALPHA_RESPONSE") %>%
   pull(gene_symbol)
@@ -146,7 +139,7 @@ ggplot(score_df, aes(x = orig.ident, y = score, fill = stimulation, color=coloni
   scale_fill_manual(values = stim_cols) +
   scale_color_manual(values = col_cols)+
   geom_point(data = summary_stats, aes(y = median_val), color = "black", size = 2) + # points at mean
-  geom_line(data = summary_stats, aes(y = median_val, group = colonization), color = "black", size = 1) + # line connecting means
+  geom_line(data = summary_stats, aes(y = median_val, group = colonization), color = "black", linewidth = 0.5) + # line connecting means
   labs(title = sign,
        x = NULL, y = "UCell score") +
   theme_classic(base_size = 13) +
